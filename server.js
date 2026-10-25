@@ -1,66 +1,59 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
+const SPREAD_RATE = 0.003; // 0.3% Institutional Spread Fee
 
-// Express Middleware
+// Middleware Setup
 app.use(cors());
 app.use(express.json());
 
-// 1. Supabase Direct HTTP API Client (Bypasses IPv6/IPv4 network block issues)
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
-const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+// Initialize Supabase Client (HTTP SDK to prevent Render IPv6/IPv4 direct connection blocks)
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 
-// 2. PostgreSQL Connection Pool (Non-blocking retry)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
-
-// Non-blocking database connection check
-if (process.env.DATABASE_URL) {
-  pool.connect()
-    .then((client) => {
-      console.log('[SettleX Engine] Connected directly to Supabase PostgreSQL');
-      client.release();
-    })
-    .catch((err) => {
-      console.warn('[DB Warning] PostgreSQL direct connection failed:', err.message);
-      console.warn('[DB Warning] Server will continue running via HTTP fallback.');
-    });
+let supabase = null;
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } else {
-  console.log('[DB Info] No DATABASE_URL provided. Operating in HTTP API mode.');
+  console.warn('[Warning]: Supabase URL or Anon Key missing. DB persistence running in mock mode.');
 }
 
-// Institutional Spread Calculation (0.3% default)
-const SPREAD_RATE = 0.003;
-
-// --- API ROUTES ---
-
+// -----------------------------------------------------------------------------
 // Health Check Endpoint
+// -----------------------------------------------------------------------------
 app.get('/api/health', (req, res) => {
-  res.json({
+  res.status(200).json({
     status: 'online',
     platform: 'SettleX B2B Cross-Border Settlement Engine',
     timestamp: new Date().toISOString()
   });
 });
 
-// Settlement Execution Endpoint
+// -----------------------------------------------------------------------------
+// Core Settlement Execution Endpoint
+// -----------------------------------------------------------------------------
 app.post('/api/settle', async (req, res) => {
   try {
     const { sourceCurrency, targetCurrency, amount, exchangeRate } = req.body;
 
+    // Payload Validation
     if (!sourceCurrency || !targetCurrency || !amount || !exchangeRate) {
-      return res.status(400).json({ error: 'Missing required settlement parameters.' });
+      return res.status(400).json({ 
+        error: 'Missing required parameters. Required: sourceCurrency, targetCurrency, amount, exchangeRate.' 
+      });
     }
 
     const grossAmount = parseFloat(amount);
     const rate = parseFloat(exchangeRate);
+
+    if (isNaN(grossAmount) || isNaN(rate) || grossAmount <= 0 || rate <= 0) {
+      return res.status(400).json({ error: 'Invalid numerical values for amount or exchangeRate.' });
+    }
+
+    // Financial Calculation Logic
     const spreadAmount = grossAmount * SPREAD_RATE;
     const netAmount = (grossAmount - spreadAmount) * rate;
 
@@ -74,26 +67,20 @@ app.post('/api/settle', async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    // Attempt writing to Supabase via HTTP SDK first if configured
+    // Non-Blocking Database Save (Guarantees API success even if DB latency or network retries occur)
     if (supabase) {
-      const { data, error } = await supabase
+      supabase
         .from('settlements')
-        .insert([transactionRecord]);
-
-      if (error) console.error('[Supabase HTTP Error]', error.message);
-    } 
-    // Fallback to PostgreSQL driver if DATABASE_URL is active
-    else if (process.env.DATABASE_URL) {
-      const query = `
-        INSERT INTO settlements (source_currency, target_currency, source_amount, target_amount, spread_fee, status, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
-        RETURNING *;
-      `;
-      const values = [sourceCurrency, targetCurrency, grossAmount, netAmount, spreadAmount, 'COMPLETED'];
-      await pool.query(query, values);
+        .insert([transactionRecord])
+        .then(({ error }) => {
+          if (error) console.warn('[Supabase Insert Warning]:', error.message);
+          else console.log('[Supabase Success]: Settlement logged to DB.');
+        })
+        .catch(err => console.warn('[Supabase Async Exception]:', err.message));
     }
 
-    return res.json({
+    // High-Availability API Response
+    return res.status(200).json({
       success: true,
       message: 'Settlement executed successfully',
       settlementDetails: {
@@ -107,15 +94,12 @@ app.post('/api/settle', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Settlement Processing Error]', error);
+    console.error('[Settlement Engine Error]:', error);
     return res.status(500).json({ error: 'Failed to process settlement transaction.' });
   }
 });
 
-// Serve frontend static files if running in combined mode
-app.use(express.static('public'));
-
-// Start Express Engine
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SettleX Engine] Server running on port ${PORT}`);
+// Start Express Server
+app.listen(PORT, () => {
+  console.log(`[SettleX Engine Running] Listening on port ${PORT}`);
 });
