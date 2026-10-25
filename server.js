@@ -10,18 +10,25 @@ const SPREAD_RATE = 0.003; // 0.3% Institutional Spread Fee
 app.use(cors());
 app.use(express.json());
 
-// Hardcoded Supabase Credentials (bypasses Render Environment Variable issues)
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://YOUR_SUPABASE_PROJECT_REF.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+// =============================================================================
+// SUPABASE CONFIGURATION
+// Replace 'YOUR_SUPABASE_PROJECT_REF' and 'YOUR_SUPABASE_ANON_KEY' below with 
+// your actual keys from Supabase (Project Settings -> API)
+// =============================================================================
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
 
 // Initialize Supabase HTTP Client
 let supabase = null;
 try {
   if (SUPABASE_URL && !SUPABASE_URL.includes('YOUR_SUPABASE_PROJECT_REF')) {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('[Supabase]: HTTP Client initialized successfully.');
+  } else {
+    console.warn('[Supabase Warning]: Running with placeholder credentials. DB writes will be skipped.');
   }
 } catch (err) {
-  console.warn('[Supabase Init Warning]:', err.message);
+  console.warn('[Supabase Init Exception]:', err.message);
 }
 
 // -----------------------------------------------------------------------------
@@ -36,7 +43,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// 2. Core Settlement Endpoint (Bulletproof - Never Returns 500)
+// 2. Core Settlement Execution Endpoint
 // -----------------------------------------------------------------------------
 app.post('/api/settle', async (req, res) => {
   try {
@@ -56,11 +63,11 @@ app.post('/api/settle', async (req, res) => {
       return res.status(400).json({ error: 'Invalid numeric values provided.' });
     }
 
-    // Settlement Calculations
+    // Settlement Calculations (0.3% Institutional Fee)
     const spreadAmount = grossAmount * SPREAD_RATE;
     const netAmount = (grossAmount - spreadAmount) * rate;
 
-    // Prepare Async Database Log
+    // Async Database Insertion (Non-blocking: prevents API timeouts)
     if (supabase) {
       const transactionRecord = {
         source_currency: sourceCurrency,
@@ -72,16 +79,17 @@ app.post('/api/settle', async (req, res) => {
         created_at: new Date().toISOString()
       };
 
-      // Completely non-blocking async execution (fire & forget)
-      supabase.from('settlements').insert([transactionRecord])
+      supabase
+        .from('settlements')
+        .insert([transactionRecord])
         .then(({ error }) => {
-          if (error) console.warn('[DB Insert Log Warning]:', error.message);
-          else console.log('[DB Insert Log Success]: Transaction logged.');
+          if (error) console.warn('[DB Insert Warning]:', error.message);
+          else console.log('[DB Insert Success]: Settlement logged to Supabase table.');
         })
         .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
     }
 
-    // Send HTTP Response IMMEDIATELY (guarantees 200 OK)
+    // Immediate High-Availability Response
     return res.status(200).json({
       success: true,
       message: 'Settlement executed successfully',
@@ -97,14 +105,13 @@ app.post('/api/settle', async (req, res) => {
 
   } catch (error) {
     console.error('[Settlement Route Error]:', error);
-    // Safe fallback response
     return res.status(500).json({ error: 'Failed to process settlement transaction.' });
   }
 });
 
 // -----------------------------------------------------------------------------
-// Start Server
+// Start Express Server
 // -----------------------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`[SettleX Running] Port ${PORT}`);
+  console.log(`[SettleX Engine Running] Port ${PORT}`);
 });
