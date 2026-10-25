@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const SPREAD_RATE = 0.003; // 0.3% Institutional Spread Fee
+const SPREAD_RATE = 0.0075; // 0.75% Standard B2B Spread Fee
 
 // Middleware
 app.use(cors());
