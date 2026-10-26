@@ -6,20 +6,28 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
 
-// Configurable Keys with Bulletproof Hardcoded Fallbacks
+// Master API Key and Supabase Config
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_live_key_9988';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q'
+;
+
+// Startup Debug Logs (Check these in Render Console)
+console.log('--------------------------------------------------');
+console.log('[Startup Debug] Master API Key:', MASTER_API_KEY);
+console.log('[Startup Debug] Supabase URL:', SUPABASE_URL);
+console.log('[Startup Debug] Supabase Anon Key Loaded:', SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 10)}...` : 'NONE');
+console.log('--------------------------------------------------');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Multi-Vector API Key Authentication Middleware (Header, Query, or Body)
+// API Key Verification Middleware (Accepts Header, Query Param, or Body)
 const requireApiKey = (req, res, next) => {
   const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
   
-  console.log(`[Auth Check]: Received Key: '${clientKey}' | Expected Key: '${MASTER_API_KEY}'`);
+  console.log(`[Auth Check] Received Key: '${clientKey}' | Expected Key: '${MASTER_API_KEY}'`);
 
   if (!clientKey || (clientKey !== MASTER_API_KEY && clientKey !== 'settlex_live_key_9988')) {
     return res.status(401).json({ 
@@ -38,7 +46,7 @@ try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     console.log('[Supabase]: HTTP Client initialized successfully.');
   } else {
-    console.warn('[Supabase Warning]: Missing or placeholder credentials. DB writes will be skipped.');
+    console.warn('[Supabase Warning]: Running without valid Supabase key. DB writes will be skipped.');
   }
 } catch (err) {
   console.warn('[Supabase Init Exception]:', err.message);
@@ -203,6 +211,22 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
-    // Trigger Webhook Callback if client supplied webhookUrl (Non-blocking)
     if (webhookUrl) {
-      sendWebhookNotification(
+      sendWebhookNotification(webhookUrl, { event: 'settlement.completed', data: settlementDetails });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Settlement executed successfully',
+      settlementDetails
+    });
+
+  } catch (error) {
+    console.error('[Settlement Route Error]:', error);
+    return res.status(500).json({ error: 'Failed to process settlement transaction.' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`[SettleX Engine Running] Port ${PORT}`);
+});
