@@ -66,7 +66,7 @@ const swaggerOptions = {
     info: {
       title: 'SettleX B2B Settlement Engine API',
       version: '1.0.0',
-      description: 'Production-grade B2B FX settlement engine featuring automated 0.75% spread processing, persistent Upstash Redis idempotency, and Supabase audit trails.'
+      description: 'Production-grade B2B FX settlement engine featuring automated 0.75% spread processing, persistent Upstash Redis idempotency, Supabase audit trails, and resilient webhook retries.'
     },
     servers: [
       { url: 'https://settlex-5qfu.onrender.com', description: 'Production Engine' },
@@ -157,18 +157,45 @@ async function getLiveExchangeRate(base, target) {
   }
 }
 
-async function sendWebhookNotification(webhookUrl, payload) {
-  try {
-    console.log(`[Webhook Engine]: Triggering callback dispatch to ${webhookUrl}...`);
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    console.log(`[Webhook Engine]: Callback delivered successfully (HTTP ${response.status}).`);
-  } catch (err) {
-    console.warn('[Webhook Warning]: Delivery failed:', err.message);
+// Webhook delivery engine with automatic exponential backoff retries
+async function sendWebhookNotification(webhookUrl, payload, maxRetries = 3) {
+  let attempt = 0;
+  let delay = 1000; // Start with a 1-second delay
+
+  while (attempt < maxRetries) {
+    try {
+      attempt++;
+      console.log(`[Webhook Engine]: Attempt ${attempt}/${maxRetries} -> ${webhookUrl}`);
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'User-Agent': 'SettleX-Webhook-Engine/1.0'
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000) // 5-second timeout per attempt
+      });
+
+      if (response.ok) {
+        console.log(`[Webhook Engine]: Successfully delivered to ${webhookUrl} (HTTP ${response.status})`);
+        return true;
+      }
+
+      console.warn(`[Webhook Warning]: HTTP ${response.status} from ${webhookUrl}`);
+    } catch (err) {
+      console.warn(`[Webhook Error]: Attempt ${attempt} failed -> ${err.message}`);
+    }
+
+    if (attempt < maxRetries) {
+      console.log(`[Webhook Engine]: Retrying in ${delay / 1000}s...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2; // Exponential backoff (1s -> 2s -> 4s)
+    }
   }
+
+  console.error(`[Webhook Failed]: All ${maxRetries} delivery attempts exhausted for ${webhookUrl}`);
+  return false;
 }
 
 // =============================================================================
@@ -404,6 +431,7 @@ const handleSettlement = async (req, res) => {
       }
     }
 
+    // Trigger non-blocking asynchronous webhook retry engine
     if (webhookUrl) {
       sendWebhookNotification(webhookUrl, {
         event: 'settlement.completed',
