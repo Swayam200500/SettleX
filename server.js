@@ -11,12 +11,12 @@ const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_live_key_9988';
 app.use(cors());
 app.use(express.json());
 
-// API Key Verification Middleware
+// Flexible API Key Verification Middleware (Checks Header, Query Param, or Body)
 const requireApiKey = (req, res, next) => {
-  const clientKey = req.headers['x-api-key'];
+  const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
   if (!clientKey || clientKey !== MASTER_API_KEY) {
     return res.status(401).json({ 
-      error: 'Unauthorized access. Valid x-api-key header required.' 
+      error: 'Unauthorized access. Valid API key required via header (x-api-key), query (?apiKey=...), or body.' 
     });
   }
   next();
@@ -52,6 +52,21 @@ async function getLiveExchangeRate(base, target) {
   } catch (err) {
     console.warn('[Exchange Rate API Error]:', err.message);
     return null;
+  }
+}
+
+// Helper: Send Non-blocking Webhook Callback
+async function sendWebhookNotification(webhookUrl, payload) {
+  try {
+    console.log(`[Webhook Engine]: Dispatching callback to ${webhookUrl}...`);
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    console.log('[Webhook Engine]: Callback delivered successfully.');
+  } catch (err) {
+    console.warn('[Webhook Warning]: Delivery failed:', err.message);
   }
 }
 
@@ -113,11 +128,11 @@ app.get('/api/quote', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// 3. Core Settlement Execution Endpoint (Protected with API Key)
+// 3. Core Settlement Execution Endpoint (Protected + Webhook Enabled)
 // -----------------------------------------------------------------------------
 app.post('/api/settle', requireApiKey, async (req, res) => {
   try {
-    const { sourceCurrency, targetCurrency, amount } = req.body;
+    const { sourceCurrency, targetCurrency, amount, webhookUrl } = req.body;
     let { exchangeRate } = req.body;
 
     if (!sourceCurrency || !targetCurrency || !amount) {
@@ -170,18 +185,26 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
         .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
     }
 
+    const settlementDetails = {
+      sourceCurrency: sourceCurrency.toUpperCase(),
+      targetCurrency: targetCurrency.toUpperCase(),
+      grossAmount,
+      spreadFee: spreadAmount,
+      feePercentage: '0.75%',
+      convertedAmount: netAmount,
+      exchangeRateUsed: rate,
+      status: 'COMPLETED',
+      timestamp: new Date().toISOString()
+    };
+
+    if (webhookUrl) {
+      sendWebhookNotification(webhookUrl, { event: 'settlement.completed', data: settlementDetails });
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Settlement executed successfully',
-      settlementDetails: {
-        sourceCurrency: sourceCurrency.toUpperCase(),
-        targetCurrency: targetCurrency.toUpperCase(),
-        grossAmount,
-        spreadFee: spreadAmount,
-        feePercentage: '0.75%',
-        convertedAmount: netAmount,
-        exchangeRateUsed: rate
-      }
+      settlementDetails
     });
 
   } catch (error) {
