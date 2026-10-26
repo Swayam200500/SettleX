@@ -330,8 +330,12 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// START SERVER
+// STEP 4: CONDITIONAL SERVER START & MODULE EXPORT (For Jest/Supertest)
 // -----------------------------------------------------------------------------
-app.listen(PORT, () => {
-  console.log(`[SettleX Engine Online] Running on Port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`[SettleX Engine Online] Running on Port ${PORT}`);
+  });
+}
+
+module.exports = app;
