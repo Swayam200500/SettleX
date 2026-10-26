@@ -6,17 +6,19 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
 
+// In-memory Idempotency Cache (Prevents Duplicate Executions)
+const processedKeys = new Map();
+
 // Configurable Keys
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_secret_key_123';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q'
-;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Flexible API Key Verification (Header, Query Param, or Body)
+// API Key Verification Middleware
 const requireApiKey = (req, res, next) => {
   const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
 
@@ -129,10 +131,21 @@ app.get('/api/quote', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// 3. Core Settlement Execution Endpoint (Protected + Webhooks + DB)
+// 3. Core Settlement Execution Endpoint (Idempotent + Webhooks + DB)
 // -----------------------------------------------------------------------------
 app.post('/api/settle', requireApiKey, async (req, res) => {
   try {
+    const idempotencyKey = req.headers['idempotency-key'];
+
+    // Check if this transaction has already been processed
+    if (idempotencyKey && processedKeys.has(idempotencyKey)) {
+      console.log(`[Idempotency Guard]: Returning cached response for key '${idempotencyKey}'`);
+      return res.status(200).json({
+        replayed: true,
+        ...processedKeys.get(idempotencyKey)
+      });
+    }
+
     const { sourceCurrency, targetCurrency, amount, webhookUrl } = req.body;
     let { exchangeRate } = req.body;
 
@@ -196,6 +209,17 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
+    const responsePayload = {
+      success: true,
+      message: 'Settlement executed successfully',
+      settlementDetails
+    };
+
+    // Cache response under Idempotency-Key
+    if (idempotencyKey) {
+      processedKeys.set(idempotencyKey, responsePayload);
+    }
+
     // Dispatch Webhook Callback to Client Server (Non-blocking)
     if (webhookUrl) {
       sendWebhookNotification(webhookUrl, {
@@ -204,11 +228,7 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: 'Settlement executed successfully',
-      settlementDetails
-    });
+    return res.status(200).json(responsePayload);
 
   } catch (error) {
     console.error('[Settlement Route Error]:', error);
