@@ -5,13 +5,17 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
+
+// Hardcoded Master Keys / Fallbacks
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_live_key_9988';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Flexible API Key Verification Middleware (Checks Header, Query Param, or Body)
+// Flexible API Key Verification (Header, Query Param, or JSON Body)
 const requireApiKey = (req, res, next) => {
   const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
   if (!clientKey || clientKey !== MASTER_API_KEY) {
@@ -25,16 +29,13 @@ const requireApiKey = (req, res, next) => {
 // =============================================================================
 // SUPABASE CONFIGURATION
 // =============================================================================
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
-
 let supabase = null;
 try {
-  if (SUPABASE_URL && !SUPABASE_URL.includes('YOUR_SUPABASE_PROJECT_REF')) {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('YOUR_ACTUAL_SUPABASE')) {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     console.log('[Supabase]: HTTP Client initialized successfully.');
   } else {
-    console.warn('[Supabase Warning]: Running with placeholder credentials. DB writes will be skipped.');
+    console.warn('[Supabase Warning]: Missing or placeholder credentials. DB writes will be skipped.');
   }
 } catch (err) {
   console.warn('[Supabase Init Exception]:', err.message);
@@ -183,6 +184,8 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
           else console.log('[DB Insert Success]: Settlement logged to Supabase table.');
         })
         .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
+    } else {
+      console.warn('[DB Skipped]: Supabase client is not initialized.');
     }
 
     const settlementDetails = {
