@@ -8,61 +8,115 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
 
-// Configurable Keys
+// Configurable Credentials & Fallbacks
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_secret_key_123';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-// Initialize Upstash Redis (Serverless & Persistent)
+// -----------------------------------------------------------------------------
+// 1. UPSTASH REDIS INITIALIZATION (Serverless Persistent Cache)
+// -----------------------------------------------------------------------------
 let redis = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  });
-  console.log('[Upstash Redis]: Persistent cache client connected.');
+if (UPSTASH_URL && UPSTASH_TOKEN) {
+  try {
+    redis = new Redis({
+      url: UPSTASH_URL,
+      token: UPSTASH_TOKEN,
+    });
+    console.log('[Upstash Redis]: Persistent cache client initialized.');
+  } catch (err) {
+    console.warn('[Redis Init Exception]:', err.message);
+  }
 } else {
   console.warn('[Redis Warning]: Missing Upstash env vars. Using temporary in-memory fallback.');
 }
 
-// In-Memory Fallback Cache
+// In-Memory Fallback Cache (Active if Redis env vars are missing)
 const fallbackMemoryCache = new Map();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Rate Limiting (100 req / 15 min per IP)
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests from this IP. Rate limit exceeded (100 req/15 min).' }
-});
-app.use('/api/', apiLimiter);
-
-// API Key Verification Middleware
-const requireApiKey = (req, res, next) => {
-  const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
-  if (!clientKey || (clientKey !== MASTER_API_KEY && !clientKey.includes('settlex_secret_key_123'))) {
-    return res.status(401).json({ error: 'Unauthorized access. Valid API key required.' });
-  }
-  next();
-};
-
-// Supabase Init
+// -----------------------------------------------------------------------------
+// 2. SUPABASE DB INITIALIZATION (Audit Logging & Multi-Tenant Key Vault)
+// -----------------------------------------------------------------------------
 let supabase = null;
 try {
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('[Supabase]: HTTP Client initialized successfully.');
+    console.log('[Supabase]: Client connected successfully.');
   }
 } catch (err) {
   console.warn('[Supabase Init Exception]:', err.message);
 }
 
-// Helpers
+// Global Middleware
+app.use(cors());
+app.use(express.json());
+
+// -----------------------------------------------------------------------------
+// 3. RATE LIMITING MIDDLEWARE (DDoS & Abuse Guard)
+// -----------------------------------------------------------------------------
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15-minute window
+  max: 100, // Limit each IP to 100 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests from this IP. Rate limit exceeded (100 req/15 min).'
+  }
+});
+
+app.use('/api/', apiLimiter);
+
+// -----------------------------------------------------------------------------
+// 4. MULTI-TENANT API KEY AUTHENTICATION MIDDLEWARE
+// -----------------------------------------------------------------------------
+const requireApiKey = async (req, res, next) => {
+  const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
+
+  if (!clientKey) {
+    return res.status(401).json({ 
+      error: 'Unauthorized access. Valid API key required.' 
+    });
+  }
+
+  // Master Secret Key Override
+  if (clientKey === MASTER_API_KEY || clientKey.includes('settlex_secret_key_123')) {
+    req.clientName = 'Master System';
+    return next();
+  }
+
+  // Dynamic Lookup in Supabase Table (`api_keys`)
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('api_keys')
+        .select('client_name, is_active')
+        .eq('api_key', clientKey)
+        .single();
+
+      if (error || !data || !data.is_active) {
+        return res.status(401).json({ 
+          error: 'Unauthorized access. Invalid or revoked API key.' 
+        });
+      }
+
+      req.clientName = data.client_name;
+      return next();
+    } catch (err) {
+      console.error('[Auth Exception]: Key validation failed:', err.message);
+      return res.status(500).json({ error: 'Internal authentication error.' });
+    }
+  }
+
+  return res.status(401).json({ error: 'Unauthorized access. Invalid API key.' });
+};
+
+// -----------------------------------------------------------------------------
+// HELPER FUNCTIONS
+// -----------------------------------------------------------------------------
+
+// Fetch Live Mid-Market Exchange Rate
 async function getLiveExchangeRate(base, target) {
   try {
     const response = await fetch(`https://open.er-api.com/v6/latest/${base.toUpperCase()}`);
@@ -74,6 +128,7 @@ async function getLiveExchangeRate(base, target) {
   }
 }
 
+// Asynchronous Non-blocking Webhook Dispatcher
 async function sendWebhookNotification(webhookUrl, payload) {
   try {
     console.log(`[Webhook Engine]: Triggering callback dispatch to ${webhookUrl}...`);
@@ -88,24 +143,36 @@ async function sendWebhookNotification(webhookUrl, payload) {
   }
 }
 
+// =============================================================================
+// API ROUTES
+// =============================================================================
+
 // -----------------------------------------------------------------------------
-// Routes
+// GET /api/health - Public Health Check
 // -----------------------------------------------------------------------------
 app.get('/api/health', (req, res) => {
   return res.status(200).json({
     status: 'online',
     platform: 'SettleX B2B Engine',
-    cacheEngine: redis ? 'Upstash Redis' : 'In-Memory Fallback',
+    cacheEngine: redis ? 'Upstash Redis (Serverless)' : 'In-Memory Fallback',
+    database: supabase ? 'Supabase PostgreSQL' : 'Disconnected',
     timestamp: new Date().toISOString()
   });
 });
 
+// -----------------------------------------------------------------------------
+// GET /api/quote - Public FX Quote Generator
+// -----------------------------------------------------------------------------
 app.get('/api/quote', async (req, res) => {
   try {
     const { sourceCurrency, targetCurrency, amount } = req.query;
+
     if (!sourceCurrency || !targetCurrency || !amount) {
-      return res.status(400).json({ error: 'Missing parameters: sourceCurrency, targetCurrency, amount' });
+      return res.status(400).json({ 
+        error: 'Missing required query parameters: sourceCurrency, targetCurrency, amount' 
+      });
     }
+
     const grossAmount = parseFloat(amount);
     if (isNaN(grossAmount) || grossAmount <= 0) {
       return res.status(400).json({ error: 'Invalid transaction amount provided.' });
@@ -113,7 +180,9 @@ app.get('/api/quote', async (req, res) => {
 
     const rate = await getLiveExchangeRate(sourceCurrency, targetCurrency);
     if (!rate) {
-      return res.status(500).json({ error: `Could not fetch live exchange rate for ${sourceCurrency}/${targetCurrency}.` });
+      return res.status(500).json({ 
+        error: `Could not fetch live exchange rate for ${sourceCurrency}/${targetCurrency}.` 
+      });
     }
 
     const spreadAmount = grossAmount * SPREAD_RATE;
@@ -137,13 +206,17 @@ app.get('/api/quote', async (req, res) => {
   }
 });
 
+// -----------------------------------------------------------------------------
+// POST /api/settle - Core Settlement Engine (Protected + Idempotent)
+// -----------------------------------------------------------------------------
 app.post('/api/settle', requireApiKey, async (req, res) => {
   try {
     const idempotencyKey = req.headers['idempotency-key'];
 
-    // 1. Redis / Memory Idempotency Check
+    // 1. Idempotency Check (Redis with Memory Fallback)
     if (idempotencyKey) {
       let cachedResponse = null;
+
       if (redis) {
         cachedResponse = await redis.get(`idempotency:${idempotencyKey}`);
       } else if (fallbackMemoryCache.has(idempotencyKey)) {
@@ -163,7 +236,9 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
     let { exchangeRate } = req.body;
 
     if (!sourceCurrency || !targetCurrency || !amount) {
-      return res.status(400).json({ error: 'Missing required parameters: sourceCurrency, targetCurrency, amount.' });
+      return res.status(400).json({ 
+        error: 'Missing required parameters: sourceCurrency, targetCurrency, amount.' 
+      });
     }
 
     const grossAmount = parseFloat(amount);
@@ -171,10 +246,15 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       return res.status(400).json({ error: 'Invalid transaction amount provided.' });
     }
 
+    // Auto-fetch exchange rate if not provided in request body
     if (!exchangeRate) {
+      console.log(`[FX Engine]: Fetching live rate for ${sourceCurrency} -> ${targetCurrency}...`);
       exchangeRate = await getLiveExchangeRate(sourceCurrency, targetCurrency);
+      
       if (!exchangeRate) {
-        return res.status(500).json({ error: `Could not fetch live rate for ${sourceCurrency}/${targetCurrency}.` });
+        return res.status(500).json({ 
+          error: `Could not fetch live rate for ${sourceCurrency}/${targetCurrency}. Please state exchangeRate manually.` 
+        });
       }
     }
 
@@ -182,9 +262,10 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
     const spreadAmount = grossAmount * SPREAD_RATE;
     const netAmount = (grossAmount - spreadAmount) * rate;
 
-    // 2. Async DB Insertion
+    // 2. Audit Log Insertion to Supabase (Non-blocking)
     if (supabase) {
       const transactionRecord = {
+        client_name: req.clientName || 'Master System',
         source_currency: sourceCurrency.toUpperCase(),
         target_currency: targetCurrency.toUpperCase(),
         source_amount: grossAmount,
@@ -194,15 +275,18 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
         created_at: new Date().toISOString()
       };
 
-      supabase.from('settlements').insert([transactionRecord])
+      supabase
+        .from('settlements')
+        .insert([transactionRecord])
         .then(({ error }) => {
           if (error) console.warn('[DB Insert Warning]:', error.message);
-          else console.log('[DB Insert Success]: Logged to Supabase.');
+          else console.log('[DB Insert Success]: Settlement logged to Supabase.');
         })
         .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
     }
 
     const settlementDetails = {
+      clientName: req.clientName || 'Master System',
       sourceCurrency: sourceCurrency.toUpperCase(),
       targetCurrency: targetCurrency.toUpperCase(),
       grossAmount,
@@ -220,7 +304,7 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       settlementDetails
     };
 
-    // 3. Cache Result in Redis (24-hour TTL) or Memory
+    // 3. Cache Result in Upstash Redis (24-hour TTL) or Memory
     if (idempotencyKey) {
       if (redis) {
         await redis.set(`idempotency:${idempotencyKey}`, responsePayload, { ex: 86400 });
@@ -229,9 +313,12 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       }
     }
 
-    // 4. Webhook Dispatch
+    // 4. Asynchronous Outbound Webhook Delivery
     if (webhookUrl) {
-      sendWebhookNotification(webhookUrl, { event: 'settlement.completed', data: settlementDetails });
+      sendWebhookNotification(webhookUrl, {
+        event: 'settlement.completed',
+        data: settlementDetails
+      });
     }
 
     return res.status(200).json(responsePayload);
@@ -242,6 +329,9 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
   }
 });
 
+// -----------------------------------------------------------------------------
+// START SERVER
+// -----------------------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`[SettleX Engine Running] Port ${PORT}`);
+  console.log(`[SettleX Engine Online] Running on Port ${PORT}`);
 });
