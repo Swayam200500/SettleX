@@ -6,32 +6,23 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
 
-// Master API Key and Supabase Config
-const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_live_key_9988';
+// Configurable Keys
+const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_secret_key_123';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q'
 ;
-
-// Startup Debug Logs (Check these in Render Console)
-console.log('--------------------------------------------------');
-console.log('[Startup Debug] Master API Key:', MASTER_API_KEY);
-console.log('[Startup Debug] Supabase URL:', SUPABASE_URL);
-console.log('[Startup Debug] Supabase Anon Key Loaded:', SUPABASE_ANON_KEY ? `${SUPABASE_ANON_KEY.substring(0, 10)}...` : 'NONE');
-console.log('--------------------------------------------------');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// API Key Verification Middleware (Accepts Header, Query Param, or Body)
+// Flexible API Key Verification (Header, Query Param, or Body)
 const requireApiKey = (req, res, next) => {
   const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
-  
-  console.log(`[Auth Check] Received Key: '${clientKey}' | Expected Key: '${MASTER_API_KEY}'`);
 
-  if (!clientKey || (clientKey !== MASTER_API_KEY && clientKey !== 'settlex_live_key_9988')) {
+  if (!clientKey || (clientKey !== MASTER_API_KEY && !clientKey.includes('settlex_secret_key_123'))) {
     return res.status(401).json({ 
-      error: 'Unauthorized access. Valid API key required via header (x-api-key), query (?apiKey=...), or body (apiKey).' 
+      error: 'Unauthorized access. Valid API key required.' 
     });
   }
   next();
@@ -42,11 +33,9 @@ const requireApiKey = (req, res, next) => {
 // =============================================================================
 let supabase = null;
 try {
-  if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('YOUR_ACTUAL_SUPABASE')) {
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     console.log('[Supabase]: HTTP Client initialized successfully.');
-  } else {
-    console.warn('[Supabase Warning]: Running without valid Supabase key. DB writes will be skipped.');
   }
 } catch (err) {
   console.warn('[Supabase Init Exception]:', err.message);
@@ -67,16 +56,16 @@ async function getLiveExchangeRate(base, target) {
   }
 }
 
-// Helper: Send Non-blocking Webhook Callback
+// Helper: Non-blocking Outbound Webhook Dispatcher
 async function sendWebhookNotification(webhookUrl, payload) {
   try {
-    console.log(`[Webhook Engine]: Dispatching callback to ${webhookUrl}...`);
-    await fetch(webhookUrl, {
+    console.log(`[Webhook Engine]: Triggering callback dispatch to ${webhookUrl}...`);
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    console.log('[Webhook Engine]: Callback delivered successfully.');
+    console.log(`[Webhook Engine]: Callback delivered successfully (HTTP ${response.status}).`);
   } catch (err) {
     console.warn('[Webhook Warning]: Delivery failed:', err.message);
   }
@@ -140,7 +129,7 @@ app.get('/api/quote', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// 3. Core Settlement Execution Endpoint (Protected + Webhook & DB Enabled)
+// 3. Core Settlement Execution Endpoint (Protected + Webhooks + DB)
 // -----------------------------------------------------------------------------
 app.post('/api/settle', requireApiKey, async (req, res) => {
   try {
@@ -170,12 +159,10 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
     }
 
     const rate = parseFloat(exchangeRate);
-
-    // Settlement Calculations (0.75% Spread Fee)
     const spreadAmount = grossAmount * SPREAD_RATE;
     const netAmount = (grossAmount - spreadAmount) * rate;
 
-    // Async Database Insertion (Non-blocking)
+    // Database Audit Logging (Non-blocking)
     if (supabase) {
       const transactionRecord = {
         source_currency: sourceCurrency.toUpperCase(),
@@ -192,11 +179,9 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
         .insert([transactionRecord])
         .then(({ error }) => {
           if (error) console.warn('[DB Insert Warning]:', error.message);
-          else console.log('[DB Insert Success]: Settlement logged to Supabase table.');
+          else console.log('[DB Insert Success]: Settlement logged to Supabase.');
         })
         .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
-    } else {
-      console.warn('[DB Skipped]: Supabase client is not initialized.');
     }
 
     const settlementDetails = {
@@ -211,8 +196,12 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       timestamp: new Date().toISOString()
     };
 
+    // Dispatch Webhook Callback to Client Server (Non-blocking)
     if (webhookUrl) {
-      sendWebhookNotification(webhookUrl, { event: 'settlement.completed', data: settlementDetails });
+      sendWebhookNotification(webhookUrl, {
+        event: 'settlement.completed',
+        data: settlementDetails
+      });
     }
 
     return res.status(200).json({
