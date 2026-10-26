@@ -5,16 +5,28 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
+const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_live_key_9988';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+// API Key Verification Middleware
+const requireApiKey = (req, res, next) => {
+  const clientKey = req.headers['x-api-key'];
+  if (!clientKey || clientKey !== MASTER_API_KEY) {
+    return res.status(401).json({ 
+      error: 'Unauthorized access. Valid x-api-key header required.' 
+    });
+  }
+  next();
+};
+
 // =============================================================================
 // SUPABASE CONFIGURATION
 // =============================================================================
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'YOUR_PUBLISHABLE_ANON_KEY';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
 
 let supabase = null;
 try {
@@ -44,7 +56,7 @@ async function getLiveExchangeRate(base, target) {
 }
 
 // -----------------------------------------------------------------------------
-// 1. Health Check Endpoint
+// 1. Health Check (Public)
 // -----------------------------------------------------------------------------
 app.get('/api/health', (req, res) => {
   return res.status(200).json({
@@ -55,7 +67,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// 2. Real-Time Rates & Quote Endpoint (GET)
+// 2. Real-Time Rates & Quote Endpoint (Public)
 // -----------------------------------------------------------------------------
 app.get('/api/quote', async (req, res) => {
   try {
@@ -101,9 +113,9 @@ app.get('/api/quote', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// 3. Core Settlement Execution Endpoint (POST)
+// 3. Core Settlement Execution Endpoint (Protected with API Key)
 // -----------------------------------------------------------------------------
-app.post('/api/settle', async (req, res) => {
+app.post('/api/settle', requireApiKey, async (req, res) => {
   try {
     const { sourceCurrency, targetCurrency, amount } = req.body;
     let { exchangeRate } = req.body;
