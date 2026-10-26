@@ -1,38 +1,57 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const { createClient } = require('@supabase/supabase-js');
+const { Redis } = require('@upstash/redis');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
-
-// In-memory Idempotency Cache (Prevents Duplicate Executions)
-const processedKeys = new Map();
 
 // Configurable Keys
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_secret_key_123';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
 
+// Initialize Upstash Redis (Serverless & Persistent)
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  console.log('[Upstash Redis]: Persistent cache client connected.');
+} else {
+  console.warn('[Redis Warning]: Missing Upstash env vars. Using temporary in-memory fallback.');
+}
+
+// In-Memory Fallback Cache
+const fallbackMemoryCache = new Map();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+// Rate Limiting (100 req / 15 min per IP)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP. Rate limit exceeded (100 req/15 min).' }
+});
+app.use('/api/', apiLimiter);
+
 // API Key Verification Middleware
 const requireApiKey = (req, res, next) => {
   const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
-
   if (!clientKey || (clientKey !== MASTER_API_KEY && !clientKey.includes('settlex_secret_key_123'))) {
-    return res.status(401).json({ 
-      error: 'Unauthorized access. Valid API key required.' 
-    });
+    return res.status(401).json({ error: 'Unauthorized access. Valid API key required.' });
   }
   next();
 };
 
-// =============================================================================
-// SUPABASE CONFIGURATION
-// =============================================================================
+// Supabase Init
 let supabase = null;
 try {
   if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -43,22 +62,18 @@ try {
   console.warn('[Supabase Init Exception]:', err.message);
 }
 
-// Helper: Fetch live market exchange rate
+// Helpers
 async function getLiveExchangeRate(base, target) {
   try {
     const response = await fetch(`https://open.er-api.com/v6/latest/${base.toUpperCase()}`);
     const data = await response.json();
-    if (data && data.rates && data.rates[target.toUpperCase()]) {
-      return data.rates[target.toUpperCase()];
-    }
-    return null;
+    return data?.rates?.[target.toUpperCase()] || null;
   } catch (err) {
     console.warn('[Exchange Rate API Error]:', err.message);
     return null;
   }
 }
 
-// Helper: Non-blocking Outbound Webhook Dispatcher
 async function sendWebhookNotification(webhookUrl, payload) {
   try {
     console.log(`[Webhook Engine]: Triggering callback dispatch to ${webhookUrl}...`);
@@ -74,29 +89,23 @@ async function sendWebhookNotification(webhookUrl, payload) {
 }
 
 // -----------------------------------------------------------------------------
-// 1. Health Check (Public)
+// Routes
 // -----------------------------------------------------------------------------
 app.get('/api/health', (req, res) => {
   return res.status(200).json({
     status: 'online',
     platform: 'SettleX B2B Engine',
+    cacheEngine: redis ? 'Upstash Redis' : 'In-Memory Fallback',
     timestamp: new Date().toISOString()
   });
 });
 
-// -----------------------------------------------------------------------------
-// 2. Real-Time Rates & Quote Endpoint (Public)
-// -----------------------------------------------------------------------------
 app.get('/api/quote', async (req, res) => {
   try {
     const { sourceCurrency, targetCurrency, amount } = req.query;
-
     if (!sourceCurrency || !targetCurrency || !amount) {
-      return res.status(400).json({ 
-        error: 'Missing required query parameters: sourceCurrency, targetCurrency, amount' 
-      });
+      return res.status(400).json({ error: 'Missing parameters: sourceCurrency, targetCurrency, amount' });
     }
-
     const grossAmount = parseFloat(amount);
     if (isNaN(grossAmount) || grossAmount <= 0) {
       return res.status(400).json({ error: 'Invalid transaction amount provided.' });
@@ -104,9 +113,7 @@ app.get('/api/quote', async (req, res) => {
 
     const rate = await getLiveExchangeRate(sourceCurrency, targetCurrency);
     if (!rate) {
-      return res.status(500).json({ 
-        error: `Could not fetch live exchange rate for pair ${sourceCurrency}/${targetCurrency}.` 
-      });
+      return res.status(500).json({ error: `Could not fetch live exchange rate for ${sourceCurrency}/${targetCurrency}.` });
     }
 
     const spreadAmount = grossAmount * SPREAD_RATE;
@@ -130,29 +137,33 @@ app.get('/api/quote', async (req, res) => {
   }
 });
 
-// -----------------------------------------------------------------------------
-// 3. Core Settlement Execution Endpoint (Idempotent + Webhooks + DB)
-// -----------------------------------------------------------------------------
 app.post('/api/settle', requireApiKey, async (req, res) => {
   try {
     const idempotencyKey = req.headers['idempotency-key'];
 
-    // Check if this transaction has already been processed
-    if (idempotencyKey && processedKeys.has(idempotencyKey)) {
-      console.log(`[Idempotency Guard]: Returning cached response for key '${idempotencyKey}'`);
-      return res.status(200).json({
-        replayed: true,
-        ...processedKeys.get(idempotencyKey)
-      });
+    // 1. Redis / Memory Idempotency Check
+    if (idempotencyKey) {
+      let cachedResponse = null;
+      if (redis) {
+        cachedResponse = await redis.get(`idempotency:${idempotencyKey}`);
+      } else if (fallbackMemoryCache.has(idempotencyKey)) {
+        cachedResponse = fallbackMemoryCache.get(idempotencyKey);
+      }
+
+      if (cachedResponse) {
+        console.log(`[Idempotency Guard]: Replaying transaction for key '${idempotencyKey}'`);
+        return res.status(200).json({
+          replayed: true,
+          ...cachedResponse
+        });
+      }
     }
 
     const { sourceCurrency, targetCurrency, amount, webhookUrl } = req.body;
     let { exchangeRate } = req.body;
 
     if (!sourceCurrency || !targetCurrency || !amount) {
-      return res.status(400).json({ 
-        error: 'Missing required parameters. Required: sourceCurrency, targetCurrency, amount.' 
-      });
+      return res.status(400).json({ error: 'Missing required parameters: sourceCurrency, targetCurrency, amount.' });
     }
 
     const grossAmount = parseFloat(amount);
@@ -161,13 +172,9 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
     }
 
     if (!exchangeRate) {
-      console.log(`[FX Engine]: Fetching real-time market rate for ${sourceCurrency} -> ${targetCurrency}...`);
       exchangeRate = await getLiveExchangeRate(sourceCurrency, targetCurrency);
-      
       if (!exchangeRate) {
-        return res.status(500).json({ 
-          error: `Could not fetch live exchange rate for pair ${sourceCurrency}/${targetCurrency}. Please specify exchangeRate manually.` 
-        });
+        return res.status(500).json({ error: `Could not fetch live rate for ${sourceCurrency}/${targetCurrency}.` });
       }
     }
 
@@ -175,7 +182,7 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
     const spreadAmount = grossAmount * SPREAD_RATE;
     const netAmount = (grossAmount - spreadAmount) * rate;
 
-    // Database Audit Logging (Non-blocking)
+    // 2. Async DB Insertion
     if (supabase) {
       const transactionRecord = {
         source_currency: sourceCurrency.toUpperCase(),
@@ -187,12 +194,10 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
         created_at: new Date().toISOString()
       };
 
-      supabase
-        .from('settlements')
-        .insert([transactionRecord])
+      supabase.from('settlements').insert([transactionRecord])
         .then(({ error }) => {
           if (error) console.warn('[DB Insert Warning]:', error.message);
-          else console.log('[DB Insert Success]: Settlement logged to Supabase.');
+          else console.log('[DB Insert Success]: Logged to Supabase.');
         })
         .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
     }
@@ -215,17 +220,18 @@ app.post('/api/settle', requireApiKey, async (req, res) => {
       settlementDetails
     };
 
-    // Cache response under Idempotency-Key
+    // 3. Cache Result in Redis (24-hour TTL) or Memory
     if (idempotencyKey) {
-      processedKeys.set(idempotencyKey, responsePayload);
+      if (redis) {
+        await redis.set(`idempotency:${idempotencyKey}`, responsePayload, { ex: 86400 });
+      } else {
+        fallbackMemoryCache.set(idempotencyKey, responsePayload);
+      }
     }
 
-    // Dispatch Webhook Callback to Client Server (Non-blocking)
+    // 4. Webhook Dispatch
     if (webhookUrl) {
-      sendWebhookNotification(webhookUrl, {
-        event: 'settlement.completed',
-        data: settlementDetails
-      });
+      sendWebhookNotification(webhookUrl, { event: 'settlement.completed', data: settlementDetails });
     }
 
     return res.status(200).json(responsePayload);
