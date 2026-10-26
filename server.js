@@ -3,6 +3,8 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { createClient } = require('@supabase/supabase-js');
 const { Redis } = require('@upstash/redis');
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -56,7 +58,38 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // -----------------------------------------------------------------------------
-// 3. RATE LIMITING MIDDLEWARE
+// 3. SWAGGER / OPENAPI SPECIFICATION
+// -----------------------------------------------------------------------------
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'SettleX B2B Settlement Engine API',
+      version: '1.0.0',
+      description: 'Production-grade B2B FX settlement engine featuring automated 0.75% spread processing, persistent Upstash Redis idempotency, and Supabase audit trails.'
+    },
+    servers: [
+      { url: 'https://settlex-5qfu.onrender.com', description: 'Production Engine' },
+      { url: 'http://localhost:10000', description: 'Local Development' }
+    ],
+    components: {
+      securitySchemes: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-api-key'
+        }
+      }
+    }
+  },
+  apis: ['./server.js']
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// -----------------------------------------------------------------------------
+// 4. RATE LIMITING MIDDLEWARE
 // -----------------------------------------------------------------------------
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -71,7 +104,7 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 // -----------------------------------------------------------------------------
-// 4. MULTI-TENANT API KEY AUTHENTICATION MIDDLEWARE
+// 5. MULTI-TENANT API KEY AUTHENTICATION MIDDLEWARE
 // -----------------------------------------------------------------------------
 const requireApiKey = async (req, res, next) => {
   const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
@@ -142,7 +175,16 @@ async function sendWebhookNotification(webhookUrl, payload) {
 // API ROUTES
 // =============================================================================
 
-// GET /api/health
+/**
+ * @openapi
+ * /api/health:
+ *   get:
+ *     summary: Engine Health Check
+ *     description: Returns the real-time status of cache, database, and system platform.
+ *     responses:
+ *       200:
+ *         description: System operational
+ */
 app.get('/api/health', (req, res) => {
   return res.status(200).json({
     status: 'online',
@@ -153,7 +195,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// GET /api/treasury - Balance endpoint for console UI
+/**
+ * @openapi
+ * /api/treasury:
+ *   get:
+ *     summary: Fetch Live Treasury Balances
+ *     description: Aggregates total ledger balances from Supabase audit records.
+ *     responses:
+ *       200:
+ *         description: Treasury balances retrieved
+ */
 app.get('/api/treasury', async (req, res) => {
   try {
     if (!supabase) {
@@ -177,10 +228,7 @@ app.get('/api/treasury', async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      balances: {
-        USD: usdBalance,
-        EUR: eurBalance
-      }
+      balances: { USD: usdBalance, EUR: eurBalance }
     });
   } catch (err) {
     return res.status(200).json({
@@ -190,7 +238,31 @@ app.get('/api/treasury', async (req, res) => {
   }
 });
 
-// GET /api/quote
+/**
+ * @openapi
+ * /api/quote:
+ *   get:
+ *     summary: Generate FX Quote
+ *     description: Calculates net conversion amounts including the 0.75% institutional spread fee.
+ *     parameters:
+ *       - in: query
+ *         name: sourceCurrency
+ *         required: true
+ *         schema: { type: string, example: "USD" }
+ *       - in: query
+ *         name: targetCurrency
+ *         required: true
+ *         schema: { type: string, example: "EUR" }
+ *       - in: query
+ *         name: amount
+ *         required: true
+ *         schema: { type: number, example: 1000 }
+ *     responses:
+ *       200:
+ *         description: Quote generated successfully
+ *       400:
+ *         description: Invalid parameters provided
+ */
 app.get('/api/quote', async (req, res) => {
   try {
     const { sourceCurrency, targetCurrency, amount } = req.query;
@@ -347,13 +419,65 @@ const handleSettlement = async (req, res) => {
   }
 };
 
-// Aliased Routes for Console UI compatibility
+/**
+ * @openapi
+ * /api/settle:
+ *   post:
+ *     summary: Execute Core FX Settlement
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: header
+ *         name: idempotency-key
+ *         required: false
+ *         schema: { type: string, example: "unique_tx_key_99" }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sourceCurrency: { type: string, example: "USD" }
+ *               targetCurrency: { type: string, example: "EUR" }
+ *               amount: { type: number, example: 1000 }
+ *               webhookUrl: { type: string, example: "https://webhook.site/cb" }
+ *     responses:
+ *       200:
+ *         description: Settlement executed successfully
+ *       401:
+ *         description: Unauthorized - Invalid API key
+ */
 app.post('/api/settle', requireApiKey, handleSettlement);
+
+/**
+ * @openapi
+ * /api/settle-double-entry:
+ *   post:
+ *     summary: Execute Double-Entry Settlement
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sourceCurrency: { type: string, example: "USD" }
+ *               targetCurrency: { type: string, example: "EUR" }
+ *               amount: { type: number, example: 1000 }
+ *     responses:
+ *       200:
+ *         description: Double-entry settlement logged and processed
+ */
 app.post('/api/settle-double-entry', requireApiKey, handleSettlement);
 
+// CONDITIONAL SERVER START & EXPORT FOR JEST
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`[SettleX Engine Online] Running on Port ${PORT}`);
+    console.log(`[Swagger Docs] Live at http://localhost:${PORT}/docs`);
   });
 }
 
