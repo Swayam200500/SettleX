@@ -14,7 +14,7 @@ app.use(express.json());
 // SUPABASE CONFIGURATION
 // =============================================================================
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'YOUR_PUBLISHABLE_ANON_KEY';
 
 let supabase = null;
 try {
@@ -28,7 +28,7 @@ try {
   console.warn('[Supabase Init Exception]:', err.message);
 }
 
-// Helper: Fetch live market exchange rate if not provided by client
+// Helper: Fetch live market exchange rate
 async function getLiveExchangeRate(base, target) {
   try {
     const response = await fetch(`https://open.er-api.com/v6/latest/${base.toUpperCase()}`);
@@ -55,14 +55,59 @@ app.get('/api/health', (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// 2. Core Settlement Execution Endpoint
+// 2. Real-Time Rates & Quote Endpoint (GET)
+// -----------------------------------------------------------------------------
+app.get('/api/quote', async (req, res) => {
+  try {
+    const { sourceCurrency, targetCurrency, amount } = req.query;
+
+    if (!sourceCurrency || !targetCurrency || !amount) {
+      return res.status(400).json({ 
+        error: 'Missing required query parameters: sourceCurrency, targetCurrency, amount' 
+      });
+    }
+
+    const grossAmount = parseFloat(amount);
+    if (isNaN(grossAmount) || grossAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid transaction amount provided.' });
+    }
+
+    const rate = await getLiveExchangeRate(sourceCurrency, targetCurrency);
+    if (!rate) {
+      return res.status(500).json({ 
+        error: `Could not fetch live exchange rate for pair ${sourceCurrency}/${targetCurrency}.` 
+      });
+    }
+
+    const spreadAmount = grossAmount * SPREAD_RATE;
+    const netAmount = (grossAmount - spreadAmount) * rate;
+
+    return res.status(200).json({
+      success: true,
+      quote: {
+        sourceCurrency: sourceCurrency.toUpperCase(),
+        targetCurrency: targetCurrency.toUpperCase(),
+        grossAmount,
+        spreadFee: spreadAmount,
+        feePercentage: '0.75%',
+        marketRate: rate,
+        estimatedPayout: netAmount
+      }
+    });
+  } catch (error) {
+    console.error('[Quote Route Error]:', error);
+    return res.status(500).json({ error: 'Failed to generate FX quote.' });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// 3. Core Settlement Execution Endpoint (POST)
 // -----------------------------------------------------------------------------
 app.post('/api/settle', async (req, res) => {
   try {
     const { sourceCurrency, targetCurrency, amount } = req.body;
     let { exchangeRate } = req.body;
 
-    // Payload validation
     if (!sourceCurrency || !targetCurrency || !amount) {
       return res.status(400).json({ 
         error: 'Missing required parameters. Required: sourceCurrency, targetCurrency, amount.' 
@@ -74,7 +119,6 @@ app.post('/api/settle', async (req, res) => {
       return res.status(400).json({ error: 'Invalid transaction amount provided.' });
     }
 
-    // Auto-fetch live market rate if exchangeRate was omitted
     if (!exchangeRate) {
       console.log(`[FX Engine]: Fetching real-time market rate for ${sourceCurrency} -> ${targetCurrency}...`);
       exchangeRate = await getLiveExchangeRate(sourceCurrency, targetCurrency);
@@ -114,7 +158,6 @@ app.post('/api/settle', async (req, res) => {
         .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
     }
 
-    // High-Availability Immediate Response
     return res.status(200).json({
       success: true,
       message: 'Settlement executed successfully',
@@ -135,9 +178,6 @@ app.post('/api/settle', async (req, res) => {
   }
 });
 
-// -----------------------------------------------------------------------------
-// Start Express Server
-// -----------------------------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`[SettleX Engine Running] Port ${PORT}`);
 });
