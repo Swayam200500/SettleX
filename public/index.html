@@ -1,251 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SettleX | B2B Settlement Console</title>
-    <style>
-        :root {
-            --bg-color: #fcf8f2;         /* Light Warm Beige */
-            --card-bg: #f5efe6;         /* Deeper Cream/Beige */
-            --wine-primary: #5c1d24;    /* Deep Wine / Burgundy */
-            --wine-header: #421217;     /* Darker Cabernet */
-            --text-color: #2b1810;      /* Dark Warm Espresso */
-            --muted-text: #7a6358;      /* Soft Muted Taupe */
-            --border-color: #e2d7c7;    /* Subtle Beige Border */
-            --gold-accent: #c59b27;     /* Warm Gold */
-            --success: #2d6a4f;         /* Elegant Forest Green */
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 24px;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 16px;
-            margin-bottom: 24px;
-        }
-
-        h1 { 
-            margin: 0; 
-            color: var(--wine-header); 
-            font-size: 26px; 
-            letter-spacing: -0.5px;
-        }
-
-        .badge { 
-            background: var(--wine-primary); 
-            color: #fcf8f2; 
-            padding: 6px 14px; 
-            border-radius: 16px; 
-            font-size: 12px; 
-            font-weight: 600;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 24px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 12px rgba(66, 18, 23, 0.04);
-        }
-
-        h2 { 
-            font-size: 18px; 
-            margin-top: 0; 
-            margin-bottom: 20px; 
-            color: var(--wine-primary);
-            border-bottom: 1px solid var(--border-color); 
-            padding-bottom: 10px; 
-        }
-
-        .form-group { margin-bottom: 18px; }
-        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--muted-text); text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        input, select {
-            width: 100%;
-            padding: 12px;
-            background: #ffffff;
-            border: 1px solid var(--border-color);
-            color: var(--text-color);
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        input:focus, select:focus {
-            border-color: var(--wine-primary);
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            background: var(--wine-primary);
-            color: #fcf8f2;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 15px;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-
-        button:hover { 
-            background: var(--wine-header); 
-        }
-
-        button:active {
-            transform: scale(0.99);
-        }
-
-        .balance-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .balance-card {
-            background: #ffffff;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-
-        .balance-card span { font-size: 12px; font-weight: 600; color: var(--muted-text); text-transform: uppercase; }
-        .balance-card h3 { margin: 6px 0 0 0; font-size: 22px; color: var(--wine-primary); }
-
-        #output {
-            background: #ffffff;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            white-space: pre-wrap;
-            max-height: 220px;
-            overflow-y: auto;
-            color: var(--wine-header);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SettleX B2B Console</title>
+  <style>
+    :root {
+      --bg: #f5f0eb;
+      --card-bg: #eae3db;
+      --input-bg: #ffffff;
+      --accent: #582328;
+      --accent-hover: #421a1e;
+      --text: #2b1b17;
+      --muted: #73635a;
+      --border: #d4c8be;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin-top: 0;
+      margin-bottom: 2rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 2rem;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.8rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background-color: var(--input-bg);
+      box-sizing: border-box;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    button {
+      width: 100%;
+      padding: 1rem;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: var(--accent-hover);
+    }
+    .balances-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .balance-box {
+      flex: 1;
+      background: #ffffff;
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .balance-val {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-top: 0.4rem;
+    }
+    pre {
+      background-color: #ffffff;
+      border: 1px solid var(--border);
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: monospace;
+      font-size: 0.85rem;
+      min-height: 120px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>SettleX B2B Console</h1>
-        <span class="badge">Engine: Active (Cloud-Native)</span>
+  <h1>SettleX B2B Console</h1>
+
+  <div class="grid">
+    <!-- Left Column: Form -->
+    <div class="card">
+      <div class="card-title">Execute Settlement</div>
+
+      <div class="form-group">
+        <label>API Security Key</label>
+        <input type="text" id="apiKeyInput" value="settlex_secret_key_123">
+      </div>
+
+      <div class="form-group">
+        <label>Principal Amount</label>
+        <input type="number" id="amountInput" value="1000">
+      </div>
+
+      <div class="form-group">
+        <label>Source Currency</label>
+        <select id="sourceCurrency">
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Target Currency</label>
+        <select id="targetCurrency">
+          <option value="EUR">EUR</option>
+          <option value="USD">USD</option>
+          <option value="INR">INR</option>
+        </select>
+      </div>
+
+      <button id="submitBtn">Execute Double-Entry Settlement</button>
     </div>
 
-    <div class="grid">
-        <!-- Settlement Form -->
-        <div class="card">
-            <h2>Execute Settlement</h2>
-            <div class="form-group">
-                <label>API Security Key</label>
-                <input type="text" id="apiKey" value="settlex_secret_key_123">
-            </div>
-            <div class="form-group">
-                <label>Principal Amount</label>
-                <input type="number" id="amount" value="10000">
-            </div>
-            <div class="form-group">
-                <label>Source Currency</label>
-                <select id="sourceCurrency">
-                    <option value="USD">USD</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Target Currency</label>
-                <select id="targetCurrency">
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                    <option value="INR">INR</option>
-                </select>
-            </div>
-            <button onclick="executeSettlement()">Execute Double-Entry Settlement</button>
+    <!-- Right Column: Treasury & Logs -->
+    <div>
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-title">Live Treasury Balances (Supabase PostgreSQL)</div>
+        <div class="balances-row">
+          <div class="balance-box">
+            <label>Treasury USD</label>
+            <div class="balance-val" id="usdBal">$1,000,000.00</div>
+          </div>
+          <div class="balance-box">
+            <label>Treasury EUR</label>
+            <div class="balance-val" id="eurBal">€850,000.00</div>
+          </div>
         </div>
+        <button id="refreshBtn" style="background-color: #d8cebe; color: #4a3b32;">Refresh Balances</button>
+      </div>
 
-        <!-- System Balances & Logs -->
-        <div>
-            <div class="card" style="margin-bottom: 24px;">
-                <h2>Live Treasury Balances (Supabase PostgreSQL)</h2>
-                <div class="balance-grid" id="balanceGrid">
-                    <div class="balance-card"><span>Treasury USD</span><h3 id="usdBalance">...</h3></div>
-                    <div class="balance-card"><span>Treasury EUR</span><h3 id="eurBalance">...</h3></div>
-                </div>
-                <button style="background: #e2d7c7; color: var(--wine-header);" onclick="fetchBalances()">Refresh Balances</button>
-            </div>
-
-            <div class="card">
-                <h2>Execution Output / Proof Hash</h2>
-                <div id="output">// Transaction result payload will display here...</div>
-            </div>
-        </div>
+      <div class="card">
+        <div class="card-title">Execution Output / Proof Hash</div>
+        <pre id="outputBox">Awaiting settlement execution...</pre>
+      </div>
     </div>
+  </div>
 
-    <script>
-        const API_BASE = '/api/v1';
+  <script>
+    const outputBox = document.getElementById('outputBox');
+    const submitBtn = document.getElementById('submitBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
 
-        async function fetchBalances() {
-            const apiKey = document.getElementById('apiKey').value;
-            try {
-                const res = await fetch(`${API_BASE}/balances`, {
-                    headers: { 'x-api-key': apiKey }
-                });
-                const data = await res.json();
-                if (data.accounts) {
-                    data.accounts.forEach(acc => {
-                        if (acc.currency === 'USD') document.getElementById('usdBalance').innerText = `$${parseFloat(acc.balance).toLocaleString()}`;
-                        if (acc.currency === 'EUR') document.getElementById('eurBalance').innerText = `€${parseFloat(acc.balance).toLocaleString()}`;
-                    });
-                }
-            } catch (err) {
-                console.error(err);
-            }
+    // Fetch Balances
+    async function loadBalances() {
+      try {
+        const res = await fetch('/api/treasury');
+        const data = await res.json();
+        if (data.balances) {
+          document.getElementById('usdBal').innerText = `$${parseFloat(data.balances.USD).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+          document.getElementById('eurBal').innerText = `€${parseFloat(data.balances.EUR).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
         }
+      } catch (err) {
+        console.error('Balance error:', err);
+      }
+    }
 
-        async function executeSettlement() {
-            const apiKey = document.getElementById('apiKey').value;
-            const amount = parseFloat(document.getElementById('amount').value);
-            const sourceCurrency = document.getElementById('sourceCurrency').value;
-            const targetCurrency = document.getElementById('targetCurrency').value;
+    // Execute Settlement
+    submitBtn.addEventListener('click', async () => {
+      outputBox.innerText = 'Processing double-entry transaction...';
 
-            document.getElementById('output').innerText = 'Executing settlement on chain & ledger...';
+      const apiKey = document.getElementById('apiKeyInput').value;
+      const amount = document.getElementById('amountInput').value;
+      const sourceCurrency = document.getElementById('sourceCurrency').value;
+      const targetCurrency = document.getElementById('targetCurrency').value;
 
-            try {
-                const res = await fetch(`${API_BASE}/settle`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey
-                    },
-                    body: JSON.stringify({ amount, sourceCurrency, targetCurrency })
-                });
-                const data = await res.json();
-                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-                fetchBalances();
-            } catch (err) {
-                document.getElementById('output').innerText = 'Error: ' + err.message;
-            }
-        }
+      try {
+        const res = await fetch('/api/settle-double-entry', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey
+          },
+          body: JSON.stringify({ sourceCurrency, targetCurrency, amount })
+        });
 
-        fetchBalances();
-    </script>
+        const data = await res.json();
+        outputBox.innerText = JSON.stringify(data, null, 2);
+        loadBalances();
+      } catch (err) {
+        outputBox.innerText = `Error: ${err.message}`;
+      }
+    });
+
+    refreshBtn.addEventListener('click', loadBalances);
+    loadBalances();
+  </script>
+
 </body>
 </html>
