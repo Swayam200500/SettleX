@@ -63,13 +63,28 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 // -----------------------------------------------------------------------------
-// 3. MOUNT WEBHOOK ROUTER
-// Matches POST http://localhost:10000/api/baas/callback
+// 3. RATE LIMITING MIDDLEWARE
+// -----------------------------------------------------------------------------
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests from this IP. Rate limit exceeded (100 req/15 min).'
+  }
+});
+
+app.use('/api', apiLimiter);
+
+// -----------------------------------------------------------------------------
+// 4. ROUTE MOUNTING
+// Direct mounting under /api ensures /api/baas/callback resolves correctly
 // -----------------------------------------------------------------------------
 app.use('/api', webhookRoutes);
 
 // -----------------------------------------------------------------------------
-// 4. SWAGGER / OPENAPI SPECIFICATION
+// 5. SWAGGER / OPENAPI SPECIFICATION
 // -----------------------------------------------------------------------------
 const swaggerOptions = {
   definition: {
@@ -98,21 +113,6 @@ const swaggerOptions = {
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-
-// -----------------------------------------------------------------------------
-// 5. RATE LIMITING MIDDLEWARE
-// -----------------------------------------------------------------------------
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: 'Too many requests from this IP. Rate limit exceeded (100 req/15 min).'
-  }
-});
-
-app.use('/api/', apiLimiter);
 
 // -----------------------------------------------------------------------------
 // 6. MULTI-TENANT API KEY AUTHENTICATION MIDDLEWARE
@@ -171,7 +171,7 @@ async function getLiveExchangeRate(base, target) {
 // Webhook delivery engine with automatic exponential backoff retries
 async function sendWebhookNotification(webhookUrl, payload, maxRetries = 3) {
   let attempt = 0;
-  let delay = 1000; // Start with a 1-second delay
+  let delay = 1000;
 
   while (attempt < maxRetries) {
     try {
@@ -185,7 +185,7 @@ async function sendWebhookNotification(webhookUrl, payload, maxRetries = 3) {
           'User-Agent': 'SettleX-Webhook-Engine/1.0'
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(5000) // 5-second timeout per attempt
+        signal: AbortSignal.timeout(5000)
       });
 
       if (response.ok) {
@@ -201,7 +201,7 @@ async function sendWebhookNotification(webhookUrl, payload, maxRetries = 3) {
     if (attempt < maxRetries) {
       console.log(`[Webhook Engine]: Retrying in ${delay / 1000}s...`);
       await new Promise(resolve => setTimeout(resolve, delay));
-      delay *= 2; // Exponential backoff (1s -> 2s -> 4s)
+      delay *= 2;
     }
   }
 
@@ -445,7 +445,6 @@ const handleSettlement = async (req, res) => {
       }
     }
 
-    // Trigger non-blocking asynchronous webhook retry engine
     if (webhookUrl) {
       sendWebhookNotification(webhookUrl, {
         event: 'settlement.completed',

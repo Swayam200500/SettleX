@@ -3,7 +3,7 @@ const router = express.Router();
 const { Queue } = require('bullmq');
 const { createClient } = require('@supabase/supabase-js');
 
-// Initialize Supabase Client directly (No external config file needed)
+// Initialize Supabase Client
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -16,9 +16,35 @@ const redisConnection = process.env.REDIS_URL
 // Dead Letter Queue (DLQ) for failed webhooks / ledger reconciliations
 const dlqQueue = new Queue('webhook-dlq', { connection: redisConnection });
 
-// Endpoint: POST /api/baas/callback
+/**
+ * @openapi
+ * /api/baas/callback:
+ *   post:
+ *     summary: BaaS Webhook Callback Handler
+ *     description: Receives asynchronous status updates from payment rails and updates ledger state.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               event_type: { type: string, example: "transfer.status_changed" }
+ *               data:
+ *                 type: object
+ *                 properties:
+ *                   id: { type: string, example: "0x2e92596bd8c3f060" }
+ *                   status: { type: string, example: "completed" }
+ *     responses:
+ *       200:
+ *         description: Webhook processed or queued for retry
+ */
 router.post('/baas/callback', async (req, res) => {
-  const { event_type, data } = req.body;
+  const { event_type, data } = req.body || {};
+
+  if (!event_type || !data) {
+    return res.status(400).json({ error: 'Invalid payload: missing event_type or data' });
+  }
 
   try {
     console.log(`[Webhook Received] Event: ${event_type}`, data);
@@ -26,7 +52,6 @@ router.post('/baas/callback', async (req, res) => {
     switch (event_type) {
       case 'transfer.status_changed':
         if (data.status === 'completed') {
-          // Update PostgreSQL double-entry ledger via Supabase
           const { error: dbError } = await supabase
             .from('settlements')
             .update({
@@ -42,7 +67,6 @@ router.post('/baas/callback', async (req, res) => {
           console.log(`[Ledger Updated] Transfer ${data.id} settled successfully.`);
 
         } else if (data.status === 'failed') {
-          // Mark settlement as failed in Supabase
           await supabase
             .from('settlements')
             .update({
@@ -65,22 +89,25 @@ router.post('/baas/callback', async (req, res) => {
   } catch (error) {
     console.error(`[Webhook Failed] Adding to DLQ: ${error.message}`);
 
-    // Push failed webhook payload to DLQ with exponential backoff
-    await dlqQueue.add(
-      'retry-webhook',
-      {
-        payload: req.body,
-        error: error.message,
-        attemptedAt: new Date().toISOString()
-      },
-      {
-        attempts: 5,
-        backoff: {
-          type: 'exponential',
-          delay: 5000
+    try {
+      await dlqQueue.add(
+        'retry-webhook',
+        {
+          payload: req.body,
+          error: error.message,
+          attemptedAt: new Date().toISOString()
+        },
+        {
+          attempts: 5,
+          backoff: {
+            type: 'exponential',
+            delay: 5000
+          }
         }
-      }
-    );
+      );
+    } catch (dlqErr) {
+      console.warn('[DLQ Enqueue Warning]:', dlqErr.message);
+    }
 
     return res.status(200).json({ status: 'queued_for_retry', reason: error.message });
   }
