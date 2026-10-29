@@ -1,230 +1,1180 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SettleX B2B Console</title>
+  <title>SettleX — Ultra-Luxury B2B Cross-Border Settlement Platform</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Three.js ES Module ImportMap -->
+  <script type="importmap">
+  {
+      "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+  }
+  </script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            deepwine: '#1a030d',
+            midwine: '#2b0818',
+            cardwine: 'rgba(35, 6, 20, 0.92)',
+            borderwine: 'rgba(230, 197, 148, 0.3)',
+            champagne: '#e6c594',
+            platinum: '#f1f5f9',
+            platinumlight: '#e2e8f0',
+            beige: '#f5f0eb',
+            beigesoft: '#ede4dc',
+            rosewine: '#c94a6e',
+            roseglow: '#e86084',
+            mintemerald: '#22c55e',
+            crimson: '#ef4444'
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            heading: ['Space Grotesk', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
   <style>
-    :root {
-      --bg: #f5f0eb;
-      --card-bg: #eae3db;
-      --input-bg: #ffffff;
-      --accent: #582328;
-      --accent-hover: #421a1e;
-      --text: #2b1b17;
-      --muted: #73635a;
-      --border: #d4c8be;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap');
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      margin: 0;
-      padding: 2rem;
+      background-color: #1a030d;
+      color: #f5f0eb;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
     }
-    h1 {
-      font-size: 1.8rem;
-      color: var(--accent);
-      margin-top: 0;
-      margin-bottom: 2rem;
+
+    /* Fixed WebGL Canvas Background */
+    #webgl-bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: auto;
     }
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1.2fr;
-      gap: 2rem;
+
+    /* Glassmorphism Dark Wine Cards */
+    .glass-card {
+      background: rgba(35, 7, 20, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(230, 197, 148, 0.22);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
     }
-    .card {
-      background-color: var(--card-bg);
-      border-radius: 8px;
-      padding: 1.5rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+
+    .glass-card-champagne {
+      background: rgba(43, 8, 24, 0.94);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(230, 197, 148, 0.45);
+      box-shadow: 0 15px 40px rgba(230, 197, 148, 0.15);
     }
-    .card-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--accent);
-      margin-bottom: 1.5rem;
+
+    .glass-card-rose {
+      background: rgba(48, 10, 28, 0.94);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(201, 74, 110, 0.45);
+      box-shadow: 0 15px 40px rgba(201, 74, 110, 0.18);
     }
-    .form-group {
-      margin-bottom: 1.2rem;
+
+    /* Typography Gradients */
+    .text-champagne-gradient {
+      background: linear-gradient(135deg, #ffffff 0%, #f5f0eb 35%, #e6c594 70%, #f1f5f9 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-    label {
-      display: block;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.4rem;
+
+    /* Liquid Gold Sweep Effect */
+    .liquid-gold-text {
+      background: linear-gradient(
+        110deg, 
+        #b88946 0%, 
+        #e6c594 25%, 
+        #ffffff 45%, 
+        #f7e2bd 55%, 
+        #e6c594 75%, 
+        #b88946 100%
+      );
+      background-size: 200% auto;
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: goldLiquidSweep 4s ease-in-out infinite;
+      filter: drop-shadow(0 0 25px rgba(230, 197, 148, 0.35));
     }
-    input, select {
-      width: 100%;
-      padding: 0.8rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background-color: var(--input-bg);
-      box-sizing: border-box;
-      font-size: 0.95rem;
-      color: var(--text);
+
+    @keyframes goldLiquidSweep {
+      0% { background-position: -100% 0; }
+      50% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
     }
-    button {
-      width: 100%;
-      padding: 1rem;
-      background-color: var(--accent);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 0.95rem;
+
+    /* Dynamic SVG Logo Animations */
+    .logo-ring-outer {
+      transform-origin: center;
+      animation: rotateOuterRing 18s linear infinite;
+    }
+
+    .logo-ring-inner {
+      transform-origin: center;
+      animation: rotateInnerRing 12s linear infinite reverse;
+    }
+
+    .logo-crosshair {
+      stroke-dasharray: 40;
+      stroke-dashoffset: 40;
+      animation: drawCrosshair 3s cubic-bezier(0.16, 1, 0.3, 1) forwards infinite alternate;
+    }
+
+    @keyframes rotateOuterRing {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes rotateInnerRing {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(-360deg); }
+    }
+
+    @keyframes drawCrosshair {
+      0% { stroke-dashoffset: 40; opacity: 0.3; }
+      50% { stroke-dashoffset: 0; opacity: 1; filter: drop-shadow(0 0 8px #e6c594); }
+      100% { stroke-dashoffset: -40; opacity: 0.5; }
+    }
+
+    .logo-aura-glow {
+      position: absolute;
+      width: 140%;
+      height: 140%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(230, 197, 148, 0.28) 0%, rgba(26, 3, 13, 0) 70%);
+      animation: auraPulse 3.5s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes auraPulse {
+      0%, 100% { transform: scale(0.95); opacity: 0.5; }
+      50% { transform: scale(1.15); opacity: 0.9; }
+    }
+
+    .letter-node {
+      display: inline-block;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       cursor: pointer;
-      transition: background 0.2s;
     }
-    button:hover {
-      background-color: var(--accent-hover);
+
+    .letter-node:hover {
+      transform: translateY(-6px) scale(1.12);
+      text-shadow: 0 0 25px rgba(230, 197, 148, 0.8);
+      color: #ffffff;
     }
-    .balances-row {
+
+    /* Shatter Animation */
+    .shatter-bar {
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .shattered {
+      transform: scale(0.9) translateY(24px) rotate(-4deg);
+      opacity: 0.2;
+      filter: blur(6px);
+    }
+
+    /* Marquee Banner */
+    @keyframes marquee {
+      0% { transform: translateX(0%); }
+      100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
       display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      width: 200%;
+      animation: marquee 25s linear infinite;
     }
-    .balance-box {
-      flex: 1;
-      background: #ffffff;
-      padding: 1rem;
-      border-radius: 6px;
-      border: 1px solid var(--border);
+    .animate-marquee:hover {
+      animation-play-state: paused;
     }
-    .balance-val {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-top: 0.4rem;
+
+    /* Form Controls */
+    input[type=number], select {
+      background: rgba(26, 3, 13, 0.9) !important;
+      border: 1px solid rgba(230, 197, 148, 0.35) !important;
+      color: #f5f0eb !important;
     }
-    pre {
-      background-color: #ffffff;
-      border: 1px solid var(--border);
-      padding: 1rem;
-      border-radius: 6px;
-      overflow-x: auto;
-      font-family: monospace;
-      font-size: 0.85rem;
-      min-height: 120px;
-      white-space: pre-wrap;
-      word-break: break-all;
+
+    input[type=number]:focus, select:focus {
+      outline: none !important;
+      border-color: #e6c594 !important;
+      box-shadow: 0 0 18px rgba(230, 197, 148, 0.35) !important;
     }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #1a030d; }
+    ::-webkit-scrollbar-thumb { background: rgba(230, 197, 148, 0.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(230, 197, 148, 0.6); }
   </style>
 </head>
-<body>
+<body class="relative selection:bg-champagne selection:text-deepwine">
 
-  <h1>SettleX B2B Console</h1>
+  <!-- Fixed WebGL Background Canvas -->
+  <div id="webgl-bg-canvas"></div>
 
-  <div class="grid">
-    <!-- Left Column: Form -->
-    <div class="card">
-      <div class="card-title">Execute Settlement</div>
+  <!-- Ambient Luxury Halos -->
+  <div class="fixed top-1/4 -left-32 w-96 h-96 bg-rosewine/15 rounded-full blur-[150px] pointer-events-none"></div>
+  <div class="fixed bottom-1/4 -right-32 w-96 h-96 bg-champagne/15 rounded-full blur-[150px] pointer-events-none"></div>
 
-      <div class="form-group">
-        <label>API Security Key</label>
-        <input type="text" id="apiKeyInput" value="settlex_secret_key_123">
-      </div>
+  <!-- UI Foreground Content Layer -->
+  <div class="relative z-10">
 
-      <div class="form-group">
-        <label>Principal Amount</label>
-        <input type="number" id="amountInput" value="1000">
-      </div>
+    <!-- Header Navigation -->
+    <header class="fixed top-0 left-0 right-0 z-50 px-6 py-4 backdrop-blur-xl bg-deepwine/85 border-b border-champagne/15">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        
+        <!-- Interactive Brand Logo & Emblem -->
+        <div class="flex items-center gap-3 cursor-pointer group" onclick="triggerBrandBurst()">
+          <div class="relative w-11 h-11 flex items-center justify-center">
+            <div class="logo-aura-glow"></div>
+            
+            <svg class="absolute inset-0 w-full h-full logo-ring-outer" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="url(#goldGradNav)" stroke-width="2" stroke-dasharray="18 10 6 10"/>
+            </svg>
+            <svg class="absolute inset-0 w-full h-full logo-ring-inner" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#e6c594" stroke-width="1.5" stroke-dasharray="10 14" opacity="0.7"/>
+            </svg>
 
-      <div class="form-group">
-        <label>Source Currency</label>
-        <select id="sourceCurrency">
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Target Currency</label>
-        <select id="targetCurrency">
-          <option value="EUR">EUR</option>
-          <option value="USD">USD</option>
-          <option value="INR">INR</option>
-        </select>
-      </div>
-
-      <button id="submitBtn">Execute Double-Entry Settlement</button>
-    </div>
-
-    <!-- Right Column: Treasury & Logs -->
-    <div>
-      <div class="card" style="margin-bottom: 1.5rem;">
-        <div class="card-title">Live Treasury Balances (Supabase PostgreSQL)</div>
-        <div class="balances-row">
-          <div class="balance-box">
-            <label>Treasury USD</label>
-            <div class="balance-val" id="usdBal">$1,000,000.00</div>
+            <svg class="w-6 h-6 relative z-10 drop-shadow-[0_0_10px_rgba(230,197,148,0.8)]" viewBox="0 0 40 40" fill="none">
+              <defs>
+                <linearGradient id="goldGradNav" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="50%" stop-color="#e6c594"/>
+                  <stop offset="100%" stop-color="#b88946"/>
+                </linearGradient>
+              </defs>
+              <path d="M10 12 L20 6 L30 12 L20 18 Z" fill="url(#goldGradNav)" opacity="0.9"/>
+              <path d="M10 28 L20 22 L30 28 L20 34 Z" fill="url(#goldGradNav)" opacity="0.75"/>
+              <path d="M10 12 L20 18 L20 22 L10 28 L5 20 Z" fill="#e6c594" opacity="0.85"/>
+              <path d="M30 12 L20 18 L20 22 L30 28 L35 20 Z" fill="url(#goldGradNav)" opacity="0.95"/>
+            </svg>
           </div>
-          <div class="balance-box">
-            <label>Treasury EUR</label>
-            <div class="balance-val" id="eurBal">€850,000.00</div>
+
+          <div class="flex flex-col">
+            <span class="font-heading font-black text-2xl tracking-wider text-champagne group-hover:text-white transition-colors flex items-center">
+              Settle<span class="text-white group-hover:text-champagne transition-colors">X</span>
+            </span>
+            <span class="text-[9px] uppercase tracking-[0.25em] font-mono text-champagne/60 font-bold -mt-1">
+              Ultra-Luxury B2B
+            </span>
           </div>
         </div>
-        <button id="refreshBtn" style="background-color: #d8cebe; color: #4a3b32;">Refresh Balances</button>
-      </div>
 
-      <div class="card">
-        <div class="card-title">Execution Output / Proof Hash</div>
-        <pre id="outputBox">Awaiting settlement execution...</pre>
+        <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-beigesoft">
+          <a href="#hero" class="hover:text-champagne transition-colors">3D Network</a>
+          <a href="#calculator" class="hover:text-champagne transition-colors">Retention Engine</a>
+          <a href="#shatter" class="hover:text-champagne transition-colors">Fee Shatter</a>
+          <a href="#storyboard" class="hover:text-champagne transition-colors">Payout Flow</a>
+          <a href="#sandbox" class="hover:text-champagne transition-colors">Sandbox</a>
+        </nav>
+
+        <div class="flex items-center gap-4">
+          <span class="hidden sm:inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-mono font-bold bg-rosewine/20 text-champagne border border-rosewine/40">
+            <span class="w-2 h-2 rounded-full bg-champagne animate-ping"></span> Nodes Active
+          </span>
+          <a href="#sandbox" class="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-champagne via-beigesoft to-champagne hover:from-beigesoft hover:to-champagne text-deepwine shadow-lg shadow-champagne/20 transition-all hover:scale-105 active:scale-95">
+            Launch Terminal
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Global Currency Marquee Ticker -->
+    <div class="pt-20 bg-deepwine/90 border-b border-champagne/10 overflow-hidden font-mono text-xs py-2.5 text-beigesoft">
+      <div class="animate-marquee whitespace-nowrap flex gap-10">
+        <span class="flex items-center gap-2"><strong class="text-champagne">USD/INR:</strong> 83.12 <span class="text-mintemerald">▲ +0.04%</span></span>
+        <span class="flex items-center gap-2"><strong class="text-champagne">USD/CNY:</strong> 7.235 <span class="text-mintemerald">▲ +0.02%</span></span>
+        <span class="flex items-center gap-2"><strong class="text-champagne">GBP/SGD:</strong> 1.714 <span class="text-mintemerald">▲ +0.08%</span></span>
+        <span class="flex items-center gap-2"><strong class="text-champagne">EUR/USD:</strong> 1.085 <span class="text-roseglow">▼ -0.01%</span></span>
+        <span class="flex items-center gap-2"><strong class="text-champagne">USD/JPY:</strong> 151.20 <span class="text-mintemerald">▲ +0.15%</span></span>
+        <span class="flex items-center gap-2"><strong class="text-champagne">USD/AED:</strong> 3.673 <span class="text-mintemerald">▲ 0.00%</span></span>
+        <span class="flex items-center gap-2"><strong class="text-champagne">USD/BRL:</strong> 5.062 <span class="text-mintemerald">▲ +0.05%</span></span>
+        <span class="flex items-center gap-2"><strong class="text-champagne">USD/KRW:</strong> 1342.1 <span class="text-mintemerald">▲ +0.11%</span></span>
       </div>
     </div>
+
+    <!-- 1. HERO SECTION -->
+    <section id="hero" class="min-h-[88vh] pt-12 pb-16 px-6 flex flex-col items-center justify-between text-center">
+      <div class="max-w-5xl mx-auto space-y-6 pt-6 pointer-events-auto flex flex-col items-center">
+        
+        <!-- Hero Emblem with Canvas Burst -->
+        <div class="relative w-28 h-28 mb-2 flex items-center justify-center cursor-pointer group" onclick="triggerBrandBurst()">
+          <div class="logo-aura-glow"></div>
+
+          <canvas id="brand-particle-canvas" class="absolute -inset-16 w-[200%] h-[200%] pointer-events-none z-20"></canvas>
+
+          <svg class="absolute inset-0 w-full h-full logo-ring-outer" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="47" fill="none" stroke="url(#goldGradHero)" stroke-width="2.5" stroke-dasharray="24 12 8 12"/>
+          </svg>
+          <svg class="absolute inset-0 w-full h-full logo-ring-inner" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="none" stroke="#e6c594" stroke-width="1.5" stroke-dasharray="14 18" opacity="0.85"/>
+          </svg>
+
+          <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+            <line x1="50" y1="2" x2="50" y2="18" stroke="#e6c594" stroke-width="2" class="logo-crosshair"/>
+            <line x1="50" y1="82" x2="50" y2="98" stroke="#e6c594" stroke-width="2" class="logo-crosshair"/>
+            <line x1="2" y1="50" x2="18" y2="50" stroke="#e6c594" stroke-width="2" class="logo-crosshair"/>
+            <line x1="82" y1="50" x2="98" y2="50" stroke="#e6c594" stroke-width="2" class="logo-crosshair"/>
+          </svg>
+
+          <svg class="w-14 h-14 relative z-10 drop-shadow-[0_0_20px_rgba(230,197,148,0.9)]" viewBox="0 0 40 40" fill="none">
+            <defs>
+              <linearGradient id="goldGradHero" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="40%" stop-color="#f7e2bd"/>
+                <stop offset="80%" stop-color="#e6c594"/>
+                <stop offset="100%" stop-color="#b88946"/>
+              </linearGradient>
+            </defs>
+            <path d="M10 12 L20 6 L30 12 L20 18 Z" fill="url(#goldGradHero)" opacity="0.95"/>
+            <path d="M10 28 L20 22 L30 28 L20 34 Z" fill="url(#goldGradHero)" opacity="0.8"/>
+            <path d="M10 12 L20 18 L20 22 L10 28 L5 20 Z" fill="#e6c594" opacity="0.9"/>
+            <path d="M30 12 L20 18 L20 22 L30 28 L35 20 Z" fill="url(#goldGradHero)" opacity="1"/>
+          </svg>
+        </div>
+
+        <div class="inline-block">
+          <h1 class="font-heading font-black text-6xl sm:text-7xl md:text-9xl tracking-tight leading-none min-h-[1.1em] flex justify-center items-center gap-1 select-none">
+            <span class="letter-node liquid-gold-text">S</span>
+            <span class="letter-node liquid-gold-text">e</span>
+            <span class="letter-node liquid-gold-text">t</span>
+            <span class="letter-node liquid-gold-text">t</span>
+            <span class="letter-node liquid-gold-text">l</span>
+            <span class="letter-node liquid-gold-text">e</span>
+            <span class="letter-node text-white font-extrabold hover:text-champagne transition-colors drop-shadow-[0_0_20px_#e6c594]">X</span>
+          </h1>
+          <div class="h-1.5 w-40 bg-gradient-to-r from-transparent via-champagne to-transparent mx-auto rounded-full mt-2"></div>
+        </div>
+
+        <h2 class="font-heading text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-tight text-beige">
+          Ultra-Luxury B2B Settlements <br />
+          <span class="text-champagne">At Sub-Second Speed</span>
+        </h2>
+
+        <p class="text-base sm:text-lg text-beigesoft max-w-2xl mx-auto font-normal leading-relaxed bg-deepwine/80 p-5 rounded-2xl border border-champagne/20 backdrop-blur-md shadow-xl">
+          Bypass traditional correspondent banking friction and opaque 4% FX spreads. Route corporate treasury across White Gold & Platinum WebGL nodes with zero hidden markups.
+        </p>
+
+        <!-- Corridor View Controls -->
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button onclick="focusCorridor('nyc_mumbai')" class="px-4 py-2.5 rounded-xl text-xs font-mono font-bold glass-card-champagne text-champagne hover:bg-champagne hover:text-deepwine transition-all shadow-md">
+            <i data-lucide="globe" class="w-3.5 h-3.5 inline mr-1"></i> Focus: NYC ➔ Mumbai
+          </button>
+          <button onclick="focusCorridor('sfo_shanghai')" class="px-4 py-2.5 rounded-xl text-xs font-mono font-bold glass-card text-beigesoft hover:bg-champagne hover:text-deepwine transition-all shadow-md">
+            <i data-lucide="map-pin" class="w-3.5 h-3.5 inline mr-1"></i> Focus: SFO ➔ Shanghai
+          </button>
+          <button onclick="focusCorridor('london_singapore')" class="px-4 py-2.5 rounded-xl text-xs font-mono font-bold glass-card-rose text-beigesoft hover:bg-rosewine hover:text-beige transition-all shadow-md">
+            <i data-lucide="navigation" class="w-3.5 h-3.5 inline mr-1"></i> Focus: London ➔ Singapore
+          </button>
+          <button onclick="resetGlobeView()" class="px-4 py-2.5 rounded-xl text-xs font-mono font-bold glass-card text-champagne hover:bg-beigesoft hover:text-deepwine transition-all shadow-md">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 inline mr-1"></i> Reset View
+          </button>
+        </div>
+      </div>
+
+      <div class="pointer-events-auto pt-8 flex flex-col items-center gap-2 text-champagne text-xs tracking-wider font-mono uppercase bg-deepwine/85 px-6 py-3 rounded-full border border-champagne/30 backdrop-blur-md shadow-lg animate-bounce">
+        <span class="flex items-center gap-2">
+          <i data-lucide="arrow-down-circle" class="w-4 h-4 text-rosewine"></i>
+          Scroll Down: White Gold & Platinum Coins Toss in Viewport Margins
+        </span>
+      </div>
+    </section>
+
+    <!-- 2. CAPITAL RETENTION CALCULATOR -->
+    <section id="calculator" class="py-20 px-6 max-w-5xl mx-auto">
+      <div class="glass-card rounded-3xl p-8 sm:p-12 space-y-8 border-champagne/30">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-rosewine/30 text-champagne border border-rosewine/40 mb-3 font-bold">
+            GLOBAL MULTI-CURRENCY CALCULATOR
+          </div>
+          <h2 class="font-heading text-3xl sm:text-4xl font-bold text-beige">Capital Retention Engine</h2>
+          <p class="text-beigesoft text-sm mt-1">Select transfer currency, enter principal amount, and observe real-time rolling ticker savings across all fee metrics.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+          
+          <div class="md:col-span-7 space-y-2">
+            <label class="text-xs font-mono uppercase tracking-wider text-beigesoft font-semibold block">
+              Enter Principal Amount
+            </label>
+            <div class="relative">
+              <span id="calc-symbol-prefix" class="absolute left-4 top-1/2 -translate-y-1/2 font-heading font-extrabold text-2xl text-champagne">$</span>
+              <input 
+                type="number" 
+                id="calc-manual-input" 
+                value="250000" 
+                min="1000" 
+                step="5000"
+                class="w-full pl-12 pr-4 py-4 rounded-2xl font-heading text-3xl font-extrabold text-beige shadow-inner transition-all"
+                placeholder="e.g. 250000"
+              />
+            </div>
+          </div>
+
+          <div class="md:col-span-5 space-y-2">
+            <label class="text-xs font-mono uppercase tracking-wider text-beigesoft font-semibold block">
+              Global Corridor Pair
+            </label>
+            <select id="calc-currency-pair" onchange="onCurrencyChange()" class="w-full py-4 px-4 rounded-2xl font-heading text-lg font-bold text-champagne cursor-pointer shadow-inner">
+              <option value="USD-CNY" data-symbol="$" data-rate="7.235" selected>USD ➔ CNY (USA to China / Shanghai)</option>
+              <option value="USD-INR" data-symbol="$" data-rate="83.12">USD ➔ INR (USA to India)</option>
+              <option value="GBP-SGD" data-symbol="£" data-rate="1.714">GBP ➔ SGD (UK to Singapore)</option>
+              <option value="EUR-USD" data-symbol="€" data-rate="1.085">EUR ➔ USD (Europe to USA)</option>
+              <option value="USD-JPY" data-symbol="$" data-rate="151.20">USD ➔ JPY (USA to Japan)</option>
+              <option value="USD-AED" data-symbol="$" data-rate="3.673">USD ➔ AED (USA to UAE)</option>
+              <option value="USD-AUD" data-symbol="$" data-rate="1.528">USD ➔ AUD (USA to Australia)</option>
+              <option value="USD-CAD" data-symbol="$" data-rate="1.356">USD ➔ CAD (USA to Canada)</option>
+              <option value="USD-BRL" data-symbol="$" data-rate="5.062">USD ➔ BRL (USA to Brazil)</option>
+              <option value="USD-KRW" data-symbol="$" data-rate="1342.1">USD ➔ KRW (USA to South Korea)</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Quick Presets -->
+        <div class="flex flex-wrap gap-2 pt-1">
+          <span class="text-xs text-beigesoft/60 font-mono self-center mr-2">Quick Presets:</span>
+          <button onclick="setPresetAmount(50000)" class="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold bg-deepwine/80 border border-champagne/20 text-champagne hover:bg-champagne hover:text-deepwine transition-all">50,000</button>
+          <button onclick="setPresetAmount(100000)" class="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold bg-deepwine/80 border border-champagne/20 text-champagne hover:bg-champagne hover:text-deepwine transition-all">100,000</button>
+          <button onclick="setPresetAmount(500000)" class="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold bg-deepwine/80 border border-champagne/20 text-champagne hover:bg-champagne hover:text-deepwine transition-all">500,000</button>
+          <button onclick="setPresetAmount(1000000)" class="px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold bg-deepwine/80 border border-champagne/20 text-champagne hover:bg-champagne hover:text-deepwine transition-all">1,000,000</button>
+        </div>
+
+        <!-- Rolling Ticker Breakdown Display -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div class="p-6 rounded-2xl bg-deepwine/90 border border-crimson/40 shadow-lg">
+            <div class="text-xs text-beigesoft font-semibold">Standard SWIFT Wire Fee (~4.0%)</div>
+            <div id="swift-fee-val" class="text-3xl sm:text-4xl font-extrabold font-heading text-crimson mt-2 tracking-tight">$10,000</div>
+            <div class="text-xs text-beigesoft/70 mt-1">3–5 Days Latency + Intermediaries</div>
+          </div>
+
+          <div class="p-6 rounded-2xl bg-rosewine/20 border border-champagne/40 shadow-lg">
+            <div class="text-xs text-champagne font-semibold">SettleX Flat Rail (0.5%)</div>
+            <div id="settlex-fee-val" class="text-3xl sm:text-4xl font-extrabold font-heading text-champagne mt-2 tracking-tight">$1,250</div>
+            <div class="text-xs text-champagne/90 mt-1 font-semibold">Sub-Second Local Settlement</div>
+          </div>
+        </div>
+
+        <!-- Total Capital Saved Banner -->
+        <div class="p-8 rounded-2xl bg-gradient-to-r from-rosewine/30 via-midwine to-rosewine/30 border border-champagne/50 text-center shadow-2xl relative overflow-hidden">
+          <div class="text-xs font-mono text-beigesoft uppercase tracking-widest font-bold">RETAINED CAPITAL SAVED</div>
+          <div id="capital-saved-val" class="font-heading text-5xl sm:text-7xl font-black text-champagne-gradient mt-2 tracking-tight">
+            $8,750
+          </div>
+          <div class="text-xs text-beigesoft mt-3 font-medium">100% of saved capital remains on your corporate balance sheet.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. INTERMEDIARY FEE COMPARISON -->
+    <section id="shatter" class="py-20 px-6 max-w-6xl mx-auto">
+      <div class="text-center mb-12 space-y-4">
+        <h2 class="font-heading text-3xl sm:text-5xl font-bold text-beige">Bypass Intermediary Fees</h2>
+        <p class="text-beigesoft max-w-2xl mx-auto text-sm sm:text-base">Traditional cross-border rails pile on correspondent bank charges and spread markups. SettleX provides direct node-to-node liquidity.</p>
+        <button id="shatter-trigger-btn" onclick="triggerMiddlemenShatter()" class="px-6 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-rosewine via-champagne to-beigesoft text-deepwine shadow-lg transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2">
+          <i data-lucide="zap" class="w-4 h-4"></i> Shatter Intermediary Fees
+        </button>
+      </div>
+
+      <div id="shatter-container" class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <div id="bar-swift" class="shatter-bar glass-card p-8 rounded-3xl space-y-6 border-crimson/40">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono px-3 py-1 rounded-full bg-crimson/30 text-beige font-bold border border-crimson/50">SWIFT Wire</span>
+            <span class="text-xs text-beigesoft font-semibold">3 - 5 Days</span>
+          </div>
+          <div>
+            <div class="text-4xl font-extrabold font-heading text-crimson">4.00%</div>
+            <div class="text-xs text-beigesoft mt-1 font-semibold">Hidden FX Spread + Intermediaries</div>
+          </div>
+          <div class="text-xs text-beigesoft leading-relaxed border-t border-champagne/10 pt-4">
+            Unpredictable correspondent hops with mandatory currency conversions and delayed settlement cycles.
+          </div>
+        </div>
+
+        <div class="glass-card-champagne p-8 rounded-3xl space-y-6 border-champagne/60 scale-105 shadow-2xl relative">
+          <div class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-champagne text-deepwine font-mono text-[10px] font-black uppercase">
+            OPTIMAL RAIL
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono px-3 py-1 rounded-full bg-champagne/20 text-champagne font-bold border border-champagne/40">SettleX Mesh</span>
+            <span class="text-xs text-champagne font-bold font-mono">Sub-Second</span>
+          </div>
+          <div>
+            <div class="text-5xl font-extrabold font-heading text-champagne">0.50%</div>
+            <div class="text-xs text-champagne mt-1 font-bold">Flat Liquidity Settlement Spread</div>
+          </div>
+          <div class="text-xs text-beigesoft leading-relaxed border-t border-champagne/10 pt-4 font-medium">
+            Direct local clearing nodes deposit funds into beneficiary accounts at real-time spot exchange rates.
+          </div>
+          <div class="inline-flex items-center gap-2 text-xs text-champagne font-mono font-bold">
+            <i data-lucide="shield-check" class="w-4 h-4 text-mintemerald"></i> Guaranteed Zero Hidden Spread
+          </div>
+        </div>
+
+        <div id="bar-fintech" class="shatter-bar glass-card p-8 rounded-3xl space-y-6 border-rosewine/40">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono px-3 py-1 rounded-full bg-rosewine/30 text-beigesoft font-bold border border-rosewine/50">Card Processors</span>
+            <span class="text-xs text-beigesoft font-semibold">1 - 2 Days</span>
+          </div>
+          <div>
+            <div class="text-4xl font-extrabold font-heading text-beigesoft">3.50%</div>
+            <div class="text-xs text-beigesoft mt-1 font-semibold">Cross-Border + Interchange</div>
+          </div>
+          <div class="text-xs text-beigesoft leading-relaxed border-t border-champagne/10 pt-4">
+            High interchange rates combined with cross-border handling markups for global transfers.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4. STORYBOARD PAYOUT FLOW -->
+    <section id="storyboard" class="py-20 px-6 max-w-6xl mx-auto">
+      <div class="text-center mb-12">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono bg-champagne/20 text-champagne border border-champagne/40 mb-3 font-bold">
+          PAYOUT ARCHITECTURE
+        </div>
+        <h2 class="font-heading text-3xl sm:text-5xl font-bold text-beige">3-Step End-to-End Payout Flow</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div class="glass-card p-6 rounded-3xl space-y-4 border-champagne/20">
+          <div class="w-10 h-10 rounded-xl bg-champagne/20 border border-champagne/40 flex items-center justify-center text-champagne font-mono font-bold">01</div>
+          <h3 class="font-heading text-xl font-bold text-beige">Initiate Payment</h3>
+          <p class="text-xs text-beigesoft leading-relaxed">
+            Sender initiates a $100,000 USD corporate transfer to an international vendor via SettleX web portal or API endpoint.
+          </p>
+          <div class="p-3 rounded-xl bg-deepwine/90 border border-champagne/20 text-xs font-mono text-champagne">
+            Debited: $100,000.00 USD
+          </div>
+        </div>
+
+        <div class="glass-card-rose p-6 rounded-3xl space-y-4">
+          <div class="w-10 h-10 rounded-xl bg-rosewine/30 border border-rosewine/50 flex items-center justify-center text-champagne font-mono font-bold">02</div>
+          <h3 class="font-heading text-xl font-bold text-beige">0.5% Liquidity Rail</h3>
+          <p class="text-xs text-beigesoft leading-relaxed">
+            SettleX locks real-time spot FX without spread markups. 0.5% ($500) flat fee is applied across the node network.
+          </p>
+          <div class="p-3 rounded-xl bg-deepwine/90 border border-champagne/20 text-xs font-mono text-roseglow">
+            Flat Fee: $500.00 USD (0.5%)
+          </div>
+        </div>
+
+        <div class="glass-card-champagne p-6 rounded-3xl space-y-4">
+          <div class="w-10 h-10 rounded-xl bg-champagne/20 border border-champagne/40 flex items-center justify-center text-champagne font-mono font-bold">03</div>
+          <h3 class="font-heading text-xl font-bold text-beige">Instant Local Clearing</h3>
+          <p class="text-xs text-beigesoft leading-relaxed">
+            Funds clear directly into beneficiary bank accounts in target local currency (CNY, INR, SGD, EUR, JPY, BRL) in under 1 second.
+          </p>
+          <div class="p-3 rounded-xl bg-deepwine/90 border border-champagne/20 text-xs font-mono text-mintemerald">
+            Cleared: Instant Real-Time Settlement
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5. ENHANCED SANDBOX TERMINAL WITH STEP-BY-STEP TELEMETRY & CONTROLS -->
+    <section id="sandbox" class="py-20 px-6 max-w-6xl mx-auto">
+      <div class="glass-card rounded-3xl p-8 sm:p-10 border-champagne/40 space-y-6">
+        
+        <!-- Terminal Header with Status Badges and Action Controls -->
+        <div class="flex flex-wrap items-center justify-between border-b border-champagne/15 pb-4 gap-4">
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-rosewine"></div>
+            <div class="w-3 h-3 rounded-full bg-champagne"></div>
+            <div class="w-3 h-3 rounded-full bg-mintemerald"></div>
+            <span class="text-xs font-mono text-beigesoft ml-2 font-semibold">settlex-wine-terminal-v4.2</span>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-mintemerald/10 text-mintemerald border border-mintemerald/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-mintemerald animate-ping"></span> Node Health: 100% | Latency: 38ms
+            </span>
+            <button onclick="clearSandboxTerminal()" class="px-2.5 py-1 rounded bg-black/60 hover:bg-rosewine/30 text-beigesoft border border-champagne/20 text-[10px] font-mono transition-colors flex items-center gap-1">
+              <i data-lucide="trash-2" class="w-3 h-3 text-roseglow"></i> Clear Log
+            </button>
+            <button onclick="copyTerminalReceipt()" class="px-2.5 py-1 rounded bg-champagne/20 hover:bg-champagne hover:text-deepwine text-champagne border border-champagne/40 text-[10px] font-mono font-bold transition-all flex items-center gap-1">
+              <i data-lucide="copy" class="w-3 h-3"></i> Copy Tx Log
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          <!-- Terminal Inputs & Beneficiary Preview -->
+          <div class="lg:col-span-5 space-y-4 font-mono text-xs">
+            <div>
+              <label class="text-beigesoft block mb-1 font-semibold">Transfer Principal Amount ($ USD)</label>
+              <input type="number" id="sandbox-amount" value="50000" oninput="updateBeneficiaryPreview()" class="w-full bg-deepwine/90 border border-champagne/30 rounded-xl p-3 text-beige focus:outline-none focus:border-champagne font-mono">
+            </div>
+
+            <div>
+              <label class="text-beigesoft block mb-1 font-semibold">Select Route Corridor</label>
+              <select id="sandbox-corridor" onchange="updateBeneficiaryPreview()" class="w-full bg-deepwine/90 border border-champagne/30 rounded-xl p-3 text-beige focus:outline-none focus:border-champagne font-mono">
+                <option value="USD-CNY" data-rate="7.235" data-symbol="¥" data-city="Shanghai" selected>San Francisco (USD) ➔ Shanghai (CNY)</option>
+                <option value="USD-INR" data-rate="83.120" data-symbol="₹" data-city="Mumbai">New York (USD) ➔ Mumbai (INR)</option>
+                <option value="GBP-SGD" data-rate="1.714" data-symbol="S$" data-city="Singapore">London (GBP) ➔ Singapore (SGD)</option>
+                <option value="EUR-USD" data-rate="1.085" data-symbol="$" data-city="New York">Frankfurt (EUR) ➔ New York (USD)</option>
+                <option value="USD-BRL" data-rate="5.062" data-symbol="R$" data-city="São Paulo">New York (USD) ➔ São Paulo (BRL)</option>
+                <option value="USD-KRW" data-rate="1342.1" data-symbol="₩" data-city="Seoul">San Francisco (USD) ➔ Seoul (KRW)</option>
+                <option value="USD-JPY" data-rate="151.20" data-symbol="¥" data-city="Tokyo">New York (USD) ➔ Tokyo (JPY)</option>
+                <option value="USD-AED" data-rate="3.673" data-symbol="AED" data-city="Dubai">New York (USD) ➔ Dubai (AED)</option>
+                <option value="USD-AUD" data-rate="1.528" data-symbol="A$" data-city="Sydney">New York (USD) ➔ Sydney (AUD)</option>
+                <option value="USD-MXN" data-rate="16.650" data-symbol="MEX$" data-city="Mexico City">Dallas (USD) ➔ Mexico City (MXN)</option>
+              </select>
+            </div>
+
+            <!-- Beneficiary Payout Live Preview Box -->
+            <div class="p-3.5 rounded-xl bg-black/80 border border-champagne/30 space-y-1">
+              <div class="text-[10px] text-beigesoft/60 uppercase tracking-wider font-semibold">Beneficiary Net Payout Preview</div>
+              <div id="sandbox-preview-val" class="text-xl font-bold font-heading text-champagne">
+                ¥ 359,941.25 CNY
+              </div>
+              <div class="text-[10px] text-beigesoft/70 flex justify-between">
+                <span>Spot Rate: <strong id="sandbox-preview-rate" class="text-beige">7.235</strong></span>
+                <span>Flat Fee (0.5%): <strong id="sandbox-preview-fee" class="text-roseglow">$250.00 USD</strong></span>
+              </div>
+            </div>
+
+            <button onclick="runSandboxSimulation()" id="sandbox-btn" class="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-champagne via-beigesoft to-champagne hover:from-beigesoft hover:to-champagne text-deepwine shadow-lg transition-all flex items-center justify-center gap-2">
+              <i data-lucide="play-circle" class="w-4 h-4"></i> Execute Test Arc Settlement
+            </button>
+          </div>
+
+          <!-- Step-by-Step Terminal Execution Console -->
+          <div id="sandbox-console" class="lg:col-span-7 bg-deepwine/95 rounded-2xl p-5 font-mono text-xs space-y-2 text-beigesoft h-[320px] border border-champagne/20 overflow-y-auto">
+            <div class="text-beigesoft/60">// SettleX Mesh Protocol v4.2 Ready...</div>
+            <div class="text-champagne/70">&gt; Live FX Route: 1 USD = 7.235 CNY (Shanghai Node Active)</div>
+            <div class="text-beigesoft/40 border-b border-champagne/10 pb-2">// Click 'Execute Test Arc Settlement' to dispatch step-by-step telemetry...</div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-6 border-t border-champagne/15 bg-deepwine text-center text-xs text-beigesoft">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <span class="font-heading font-bold text-lg text-beige">Settle<span class="text-champagne">X</span></span>
+          <span>© 2026 SettleX Platforms Inc. All rights reserved.</span>
+        </div>
+        <div class="flex gap-6 text-beigesoft font-semibold">
+          <a href="#" class="hover:text-champagne">Node Protocol Spec</a>
+          <a href="#" class="hover:text-champagne">API Sandbox Docs</a>
+          <a href="#" class="hover:text-champagne">Enterprise Terms</a>
+        </div>
+      </div>
+    </footer>
+
   </div>
 
   <script>
-    const outputBox = document.getElementById('outputBox');
-    const submitBtn = document.getElementById('submitBtn');
-    const refreshBtn = document.getElementById('refreshBtn');
+    function triggerBrandBurst() {
+      const canvas = document.getElementById('brand-particle-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
 
-    // Fetch Balances
-    async function loadBalances() {
-      try {
-        const res = await fetch('/api/treasury');
-        const data = await res.json();
-        if (data.balances) {
-          document.getElementById('usdBal').innerText = `$${parseFloat(data.balances.USD).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-          document.getElementById('eurBal').innerText = `€${parseFloat(data.balances.EUR).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+      const particles = [];
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const colors = ['#e6c594', '#f7e2bd', '#ffffff', '#e2e8f0'];
+
+      for (let i = 0; i < 45; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2 + Math.random() * 5;
+        particles.push({
+          x: centerX,
+          y: centerY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 1.5 + Math.random() * 2.5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          alpha: 1,
+          decay: 0.02 + Math.random() * 0.03
+        });
+      }
+
+      function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+        particles.forEach(p => {
+          if (p.alpha > 0) {
+            active = true;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.alpha -= p.decay;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.alpha);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        });
+        if (active) requestAnimationFrame(animateParticles);
+      }
+      animateParticles();
+    }
+  </script>
+
+  <!-- Synchronized Rolling Tickers & Enhanced Terminal Mechanics Script -->
+  <script>
+    let swiftTickerInterval = null;
+    let settlexTickerInterval = null;
+    let savedTickerInterval = null;
+
+    function onCurrencyChange() {
+      const select = document.getElementById('calc-currency-pair');
+      const opt = select.options[select.selectedIndex];
+      const symbol = opt.getAttribute('data-symbol') || '$';
+      document.getElementById('calc-symbol-prefix').innerText = symbol;
+      calculateRetention();
+    }
+
+    function setPresetAmount(amt) {
+      document.getElementById('calc-manual-input').value = amt;
+      calculateRetention();
+    }
+
+    function calculateRetention() {
+      const amt = parseFloat(document.getElementById('calc-manual-input').value) || 0;
+      const select = document.getElementById('calc-currency-pair');
+      const opt = select.options[select.selectedIndex];
+      const symbol = opt.getAttribute('data-symbol') || '$';
+
+      const targetSwift = amt * 0.04;
+      const targetSettlex = amt * 0.005;
+      const targetSaved = targetSwift - targetSettlex;
+
+      const duration = 450;
+      const steps = 18;
+
+      if (swiftTickerInterval) clearInterval(swiftTickerInterval);
+      let swiftRoll = 0;
+      const swiftInc = targetSwift / steps;
+      swiftTickerInterval = setInterval(() => {
+        swiftRoll += swiftInc;
+        if (swiftRoll >= targetSwift) {
+          swiftRoll = targetSwift;
+          clearInterval(swiftTickerInterval);
         }
-      } catch (err) {
-        console.error('Balance error:', err);
+        document.getElementById('swift-fee-val').innerText = symbol + Math.round(swiftRoll).toLocaleString();
+      }, duration / steps);
+
+      if (settlexTickerInterval) clearInterval(settlexTickerInterval);
+      let settlexRoll = 0;
+      const settlexInc = targetSettlex / steps;
+      settlexTickerInterval = setInterval(() => {
+        settlexRoll += settlexInc;
+        if (settlexRoll >= targetSettlex) {
+          settlexRoll = targetSettlex;
+          clearInterval(settlexTickerInterval);
+        }
+        document.getElementById('settlex-fee-val').innerText = symbol + Math.round(settlexRoll).toLocaleString();
+      }, duration / steps);
+
+      if (savedTickerInterval) clearInterval(savedTickerInterval);
+      let savedRoll = 0;
+      const savedInc = targetSaved / steps;
+      savedTickerInterval = setInterval(() => {
+        savedRoll += savedInc;
+        if (savedRoll >= targetSaved) {
+          savedRoll = targetSaved;
+          clearInterval(savedTickerInterval);
+        }
+        document.getElementById('capital-saved-val').innerText = symbol + Math.round(savedRoll).toLocaleString();
+      }, duration / steps);
+    }
+
+    document.getElementById('calc-manual-input')?.addEventListener('input', calculateRetention);
+
+    function triggerMiddlemenShatter() {
+      const swift = document.getElementById('bar-swift');
+      const fintech = document.getElementById('bar-fintech');
+      if (swift && fintech) {
+        swift.classList.toggle('shattered');
+        fintech.classList.toggle('shattered');
       }
     }
 
-    // Execute Settlement
-    submitBtn.addEventListener('click', async () => {
-      outputBox.innerText = 'Processing double-entry transaction...';
+    /* Sandbox Terminal Preview & Telemetry Drivers */
+    function updateBeneficiaryPreview() {
+      const amt = parseFloat(document.getElementById('sandbox-amount').value) || 0;
+      const select = document.getElementById('sandbox-corridor');
+      const opt = select.options[select.selectedIndex];
+      
+      const rate = parseFloat(opt.getAttribute('data-rate')) || 1.0;
+      const symbol = opt.getAttribute('data-symbol') || '';
+      
+      const feeUSD = amt * 0.005;
+      const netUSD = amt - feeUSD;
+      const netLocal = netUSD * rate;
 
-      const apiKey = document.getElementById('apiKeyInput').value;
-      const amount = document.getElementById('amountInput').value;
-      const sourceCurrency = document.getElementById('sourceCurrency').value;
-      const targetCurrency = document.getElementById('targetCurrency').value;
+      document.getElementById('sandbox-preview-val').innerText = `${symbol} ${netLocal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('sandbox-preview-rate').innerText = rate;
+      document.getElementById('sandbox-preview-fee').innerText = `$${feeUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD`;
+    }
 
-      try {
-        const res = await fetch('/api/settle-double-entry', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey
-          },
-          body: JSON.stringify({ sourceCurrency, targetCurrency, amount })
-        });
+    function clearSandboxTerminal() {
+      const consoleBox = document.getElementById('sandbox-console');
+      consoleBox.innerHTML = `
+        <div class="text-beigesoft/60">// Terminal cleared by user. SettleX Protocol Ready...</div>
+      `;
+    }
 
-        const data = await res.json();
-        outputBox.innerText = JSON.stringify(data, null, 2);
-        loadBalances();
-      } catch (err) {
-        outputBox.innerText = `Error: ${err.message}`;
+    function copyTerminalReceipt() {
+      const consoleBox = document.getElementById('sandbox-console');
+      const text = consoleBox.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Transaction Telemetry Log copied to clipboard!");
+      });
+    }
+
+    function generateRandomHash() {
+      const chars = '0123456789abcdef';
+      let hash = '0x';
+      for (let i = 0; i < 16; i++) {
+        hash += chars[Math.floor(Math.random() * chars.length)];
       }
-    });
+      return hash;
+    }
 
-    refreshBtn.addEventListener('click', loadBalances);
-    loadBalances();
+    function runSandboxSimulation() {
+      const amt = parseFloat(document.getElementById('sandbox-amount').value) || 0;
+      const select = document.getElementById('sandbox-corridor');
+      const opt = select.options[select.selectedIndex];
+      
+      const corridorVal = opt.value;
+      const rate = parseFloat(opt.getAttribute('data-rate')) || 1.0;
+      const symbol = opt.getAttribute('data-symbol') || '';
+      const city = opt.getAttribute('data-city') || 'Local';
+
+      const feeUSD = amt * 0.005;
+      const netUSD = amt - feeUSD;
+      const netLocal = netUSD * rate;
+      const txHash = generateRandomHash();
+      const timeStr = new Date().toLocaleTimeString();
+
+      const consoleBox = document.getElementById('sandbox-console');
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'border-l-2 border-champagne pl-3 py-1 my-3 space-y-1 bg-black/40 rounded-r-xl';
+      
+      wrapper.innerHTML = `
+        <div class="text-champagne font-bold flex justify-between">
+          <span>&gt; [${timeStr}] ROUTE INITIATED: ${corridorVal}</span>
+          <span class="text-mintemerald font-mono">TX: ${txHash}</span>
+        </div>
+        <div class="text-beigesoft/80 text-[11px]">
+          <div>• [0ms] Debited Principal: $${amt.toLocaleString()} USD | Lock Spot Rate: 1:${rate}</div>
+          <div>• [120ms] Applied Flat SettleX Spread (0.5%): -$${feeUSD.toFixed(2)} USD</div>
+          <div>• [280ms] Vault Routing via ${city} Clearing Node (Latency: 38ms)</div>
+          <div class="text-mintemerald font-bold mt-0.5">• [410ms] CLEARED: Beneficiary Account Credited ${symbol} ${netLocal.toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+        </div>
+      `;
+
+      consoleBox.appendChild(wrapper);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    calculateRetention();
+    updateBeneficiaryPreview();
   </script>
 
+  <!-- Three.js WebGL Scene: Globe Mesh + Option B White Gold Coins (Wider Orbit R = 26 - 32) -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // SCENE & CAMERA
+    const container = document.getElementById('webgl-bg-canvas');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x1a030d, 0.012);
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 45);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enableZoom = false;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.8;
+
+    // LIGHTING
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    scene.add(ambientLight);
+
+    const platinumLight = new THREE.DirectionalLight(0xe2e8f0, 3.8);
+    platinumLight.position.set(20, 25, 20);
+    scene.add(platinumLight);
+
+    const champagneLight = new THREE.DirectionalLight(0xe6c594, 3.5);
+    champagneLight.position.set(20, 25, 20);
+    scene.add(champagneLight);
+
+    const roseLight = new THREE.DirectionalLight(0xc94a6e, 2.5);
+    roseLight.position.set(-20, -20, -20);
+    scene.add(roseLight);
+
+    // GLOBE GROUP
+    const globeGroup = new THREE.Group();
+    scene.add(globeGroup);
+
+    // Inner Core
+    const sphereGeo = new THREE.SphereGeometry(12, 64, 64);
+    const sphereMat = new THREE.MeshStandardMaterial({
+      color: 0x2b0818,
+      roughness: 0.4,
+      metalness: 0.3,
+      emissive: 0x1a030d,
+      emissiveIntensity: 0.6
+    });
+    const globeCore = new THREE.Mesh(sphereGeo, sphereMat);
+    globeGroup.add(globeCore);
+
+    // Outer Gold Wireframe Matrix
+    const wireGeo = new THREE.SphereGeometry(12.2, 32, 32);
+    const wireMat = new THREE.MeshBasicMaterial({
+      color: 0xe6c594,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.25
+    });
+    const globeWire = new THREE.Mesh(wireGeo, wireMat);
+    globeGroup.add(globeWire);
+
+    // Lat/Long Vector Helper
+    function latLongToVector3(lat, lon, radius) {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lon + 180) * (Math.PI / 180);
+      return new THREE.Vector3(
+        -(radius * Math.sin(phi) * Math.cos(theta)),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      );
+    }
+
+    const nodes = [
+      { name: 'NYC', lat: 40.7128, lon: -74.0060 },
+      { name: 'Shanghai', lat: 31.2304, lon: 121.4737 },
+      { name: 'London', lat: 51.5074, lon: -0.1278 },
+      { name: 'Singapore', lat: 1.3521, lon: 103.8198 },
+      { name: 'Mumbai', lat: 19.0760, lon: 72.8777 },
+      { name: 'Tokyo', lat: 35.6762, lon: 139.6503 },
+      { name: 'São Paulo', lat: -23.5505, lon: -46.6333 },
+      { name: 'Seoul', lat: 37.5665, lon: 126.9780 }
+    ];
+
+    const nodeGeo = new THREE.SphereGeometry(0.35, 16, 16);
+    const nodeMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0 });
+
+    nodes.forEach(n => {
+      const pos = latLongToVector3(n.lat, n.lon, 12.3);
+      const nodeMesh = new THREE.Mesh(nodeGeo, nodeMat);
+      nodeMesh.position.copy(pos);
+      globeGroup.add(nodeMesh);
+    });
+
+    // Option B Texture Canvas Generator (White Gold Rim + Deep Wine Inner Face)
+    function createCoinTextureOptionB(symbol) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#1a030d';
+      ctx.fillRect(0, 0, 256, 256);
+
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.arc(128, 128, 108, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = 'bold 95px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(symbol, 128, 132);
+
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    // Option B High-Density Currency Coins with Expanded Base Radius (R = 26 - 32)
+    const coinSymbols = ['$', '₹', '€', '£', '¥', '元', 'AED', 'CHF', 'R$', '₩', 'C$', 'A$'];
+    const coinGroup = new THREE.Group();
+    scene.add(coinGroup);
+
+    const coinGeo = new THREE.CylinderGeometry(1.8, 1.8, 0.35, 32);
+    const whiteGoldEdgeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 1.0, roughness: 0.1 });
+
+    coinSymbols.forEach((sym, idx) => {
+      const faceTex = createCoinTextureOptionB(sym);
+      const faceMat = new THREE.MeshStandardMaterial({ map: faceTex, metalness: 0.9, roughness: 0.2 });
+      const coinMesh = new THREE.Mesh(coinGeo, [whiteGoldEdgeMat, faceMat, faceMat]);
+
+      const angle = (idx / coinSymbols.length) * Math.PI * 2;
+      const baseRadius = 26 + (idx % 3) * 3.0;
+
+      coinMesh.userData = { 
+        angle: angle, 
+        baseRadius: baseRadius,
+        currentRadius: baseRadius,
+        orbitSpeed: 0.003 + (idx % 2) * 0.001,
+        tossSpeedX: 0.008 + (idx % 4) * 0.003,
+        tossSpeedZ: 0.006 + (idx % 3) * 0.002
+      };
+      coinGroup.add(coinMesh);
+    });
+
+    let scrollVelocity = 0;
+    let lastScrollY = window.scrollY;
+
+    // Scroll Physics Driver with Dynamic Orbit Compression
+    window.addEventListener('scroll', () => {
+      const currentScrollY = window.scrollY;
+      const maxScroll = document.body.scrollHeight - window.innerHeight;
+      const deltaScroll = Math.abs(currentScrollY - lastScrollY);
+      scrollVelocity = deltaScroll * 0.015;
+      lastScrollY = currentScrollY;
+
+      const scrollFraction = Math.min(currentScrollY / maxScroll, 1);
+      globeGroup.scale.setScalar(1 - scrollFraction * 0.25);
+      globeGroup.position.y = -scrollFraction * 3;
+
+      coinGroup.children.forEach(coin => {
+        coin.userData.currentRadius = coin.userData.baseRadius * (1 - scrollFraction * 0.32);
+      });
+    });
+
+    window.focusCorridor = function(pair) {
+      if (pair === 'nyc_mumbai') {
+        camera.position.set(15, 10, 35);
+      } else if (pair === 'sfo_shanghai') {
+        camera.position.set(-25, 12, 25);
+      } else if (pair === 'london_singapore') {
+        camera.position.set(-15, 15, 30);
+      }
+    };
+
+    window.resetGlobeView = function() {
+      camera.position.set(0, 0, 45);
+      controls.target.set(0, 0, 0);
+    };
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      controls.update();
+
+      scrollVelocity *= 0.92;
+
+      coinGroup.children.forEach(coin => {
+        coin.userData.angle += coin.userData.orbitSpeed;
+        const radius = coin.userData.currentRadius;
+        
+        coin.position.x = Math.cos(coin.userData.angle) * radius;
+        coin.position.z = Math.sin(coin.userData.angle) * radius;
+        coin.position.y = Math.sin(coin.userData.angle * 2) * 2;
+
+        const activeTossSpeed = coin.userData.tossSpeedX + scrollVelocity;
+        coin.rotation.x += activeTossSpeed;
+        coin.rotation.z += coin.userData.tossSpeedZ + scrollVelocity * 0.5;
+        coin.rotation.y += 0.005;
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>
+<!-- Your existing HTML and 3D Canvas elements here -->
+
+    <!-- Add the API connection script right before closing </body> -->
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api/v1';
+
+        // Fetch live FX rates on load
+        async function fetchFxRates() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/fx-rates`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('[SettleX UI] FX Rates Loaded:', data.rates);
+                    // Update your 3D text/UI elements here using data.rates
+                }
+            } catch (error) {
+                console.error('[SettleX UI] Connection Error:', error);
+            }
+        }
+
+        // Call settlement endpoint when user initiates a transfer
+        async function executeSettlement(amount, sourceCurrency, targetCurrency) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/settle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, sourceCurrency, targetCurrency })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    console.log('[SettleX UI] Settlement Executed:', result.settlement);
+                    return result.settlement;
+                }
+            } catch (error) {
+                console.error('[SettleX UI] Settlement Error:', error);
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', fetchFxRates);
+    </script>
 </body>
 </html>

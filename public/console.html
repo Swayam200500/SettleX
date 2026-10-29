@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SettleX B2B Console</title>
+  <style>
+    :root {
+      --bg: #f5f0eb;
+      --card-bg: #eae3db;
+      --input-bg: #ffffff;
+      --accent: #582328;
+      --accent-hover: #421a1e;
+      --text: #2b1b17;
+      --muted: #73635a;
+      --border: #d4c8be;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      color: var(--accent);
+      margin-top: 0;
+      margin-bottom: 2rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 2rem;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.8rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background-color: var(--input-bg);
+      box-sizing: border-box;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    button {
+      width: 100%;
+      padding: 1rem;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: var(--accent-hover);
+    }
+    .balances-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .balance-box {
+      flex: 1;
+      background: #ffffff;
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .balance-val {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-top: 0.4rem;
+    }
+    pre {
+      background-color: #ffffff;
+      border: 1px solid var(--border);
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: monospace;
+      font-size: 0.85rem;
+      min-height: 120px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>SettleX B2B Console</h1>
+
+  <div class="grid">
+    <!-- Left Column: Form -->
+    <div class="card">
+      <div class="card-title">Execute Settlement</div>
+
+      <div class="form-group">
+        <label>API Security Key</label>
+        <input type="text" id="apiKeyInput" value="settlex_secret_key_123">
+      </div>
+
+      <div class="form-group">
+        <label>Principal Amount</label>
+        <input type="number" id="amountInput" value="1000">
+      </div>
+
+      <div class="form-group">
+        <label>Source Currency</label>
+        <select id="sourceCurrency">
+          <option value="USD">USD</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Target Currency</label>
+        <select id="targetCurrency">
+          <option value="EUR">EUR</option>
+          <option value="USD">USD</option>
+          <option value="INR">INR</option>
+        </select>
+      </div>
+
+      <button id="submitBtn">Execute Double-Entry Settlement</button>
+    </div>
+
+    <!-- Right Column: Treasury & Logs -->
+    <div>
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-title">Live Treasury Balances (Supabase PostgreSQL)</div>
+        <div class="balances-row">
+          <div class="balance-box">
+            <label>Treasury USD</label>
+            <div class="balance-val" id="usdBal">$1,000,000.00</div>
+          </div>
+          <div class="balance-box">
+            <label>Treasury EUR</label>
+            <div class="balance-val" id="eurBal">€850,000.00</div>
+          </div>
+        </div>
+        <button id="refreshBtn" style="background-color: #d8cebe; color: #4a3b32;">Refresh Balances</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Execution Output / Proof Hash</div>
+        <pre id="outputBox">Awaiting settlement execution...</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const outputBox = document.getElementById('outputBox');
+    const submitBtn = document.getElementById('submitBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    // Fetch Balances
+    async function loadBalances() {
+      try {
+        const res = await fetch('/api/treasury');
+        const data = await res.json();
+        if (data.balances) {
+          document.getElementById('usdBal').innerText = `$${parseFloat(data.balances.USD).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+          document.getElementById('eurBal').innerText = `€${parseFloat(data.balances.EUR).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        }
+      } catch (err) {
+        console.error('Balance error:', err);
+      }
+    }
+
+    // Execute Settlement
+    submitBtn.addEventListener('click', async () => {
+      outputBox.innerText = 'Processing double-entry transaction...';
+
+      const apiKey = document.getElementById('apiKeyInput').value;
+      const amount = document.getElementById('amountInput').value;
+      const sourceCurrency = document.getElementById('sourceCurrency').value;
+      const targetCurrency = document.getElementById('targetCurrency').value;
+
+      try {
+        const res = await fetch('/api/settle-double-entry', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey
+          },
+          body: JSON.stringify({ sourceCurrency, targetCurrency, amount })
+        });
+
+        const data = await res.json();
+        outputBox.innerText = JSON.stringify(data, null, 2);
+        loadBalances();
+      } catch (err) {
+        outputBox.innerText = `Error: ${err.message}`;
+      }
+    });
+
+    refreshBtn.addEventListener('click', loadBalances);
+    loadBalances();
+  </script>
+
+</body>
+</html>
