@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { Queue } = require('bullmq');
-const { supabase } = require('../config/supabaseClient'); // Adjust relative path if needed
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase Client directly (No external config file needed)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Parse Redis connection for Upstash or local Redis
 const redisConnection = process.env.REDIS_URL
@@ -72,12 +77,11 @@ router.post('/baas/callback', async (req, res) => {
         attempts: 5,
         backoff: {
           type: 'exponential',
-          delay: 5000 // Start retries at 5s delay
+          delay: 5000
         }
       }
     );
 
-    // Acknowledge receipt to BaaS provider so endpoint remains active
     return res.status(200).json({ status: 'queued_for_retry', reason: error.message });
   }
 });
