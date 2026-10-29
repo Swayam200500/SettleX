@@ -9,7 +9,8 @@ const swaggerJsdoc = require('swagger-jsdoc');
 
 // Import Route Handlers
 const webhookRoutes = require('./routes/webhooks');
-
+const webhookRoutes = require('./routes/webhooks'); // Line 11[cite: 3]
+const healthRoutes = require('./routes/health');   // Line 12 (NEW)
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
@@ -76,6 +77,27 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api', apiLimiter);
+// --- SWAGGER UI SETUP ---
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'SettleX B2B FX Engine API',
+      version: '1.0.0',
+      description: 'Production-grade double-entry settlement engine'
+    },
+    servers: [
+      {
+        url: 'https://settlex-5qfu.onrender.com'
+      }
+    ]
+  },
+  apis: ['./server.js', './routes/*.js']
+};
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+
 
 // -----------------------------------------------------------------------------
 // 4. ROUTE MOUNTING
