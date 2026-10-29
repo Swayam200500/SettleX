@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -5,6 +6,9 @@ const { createClient } = require('@supabase/supabase-js');
 const { Redis } = require('@upstash/redis');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
+
+// Import Route Handlers
+const webhookRoutes = require('./routes/webhooks');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -53,12 +57,19 @@ try {
 // Global Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Serve static dashboard files from the 'public' folder
 app.use(express.static('public'));
 
 // -----------------------------------------------------------------------------
-// 3. SWAGGER / OPENAPI SPECIFICATION
+// 3. MOUNT WEBHOOK ROUTER
+// Matches POST http://localhost:10000/api/baas/callback
+// -----------------------------------------------------------------------------
+app.use('/api', webhookRoutes);
+
+// -----------------------------------------------------------------------------
+// 4. SWAGGER / OPENAPI SPECIFICATION
 // -----------------------------------------------------------------------------
 const swaggerOptions = {
   definition: {
@@ -82,14 +93,14 @@ const swaggerOptions = {
       }
     }
   },
-  apis: ['./server.js']
+  apis: ['./server.js', './routes/*.js']
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // -----------------------------------------------------------------------------
-// 4. RATE LIMITING MIDDLEWARE
+// 5. RATE LIMITING MIDDLEWARE
 // -----------------------------------------------------------------------------
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -104,7 +115,7 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 // -----------------------------------------------------------------------------
-// 5. MULTI-TENANT API KEY AUTHENTICATION MIDDLEWARE
+// 6. MULTI-TENANT API KEY AUTHENTICATION MIDDLEWARE
 // -----------------------------------------------------------------------------
 const requireApiKey = async (req, res, next) => {
   const clientKey = req.headers['x-api-key'] || req.query.apiKey || (req.body && req.body.apiKey);
@@ -382,6 +393,8 @@ const handleSettlement = async (req, res) => {
     const spreadAmount = grossAmount * SPREAD_RATE;
     const netAmount = (grossAmount - spreadAmount) * rate;
 
+    const proofHash = `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
+
     if (supabase) {
       const transactionRecord = {
         client_name: req.clientName || 'Master System',
@@ -390,6 +403,7 @@ const handleSettlement = async (req, res) => {
         source_amount: grossAmount,
         target_amount: netAmount,
         spread_fee: spreadAmount,
+        proof_hash: proofHash,
         status: 'COMPLETED',
         created_at: new Date().toISOString()
       };
@@ -404,7 +418,7 @@ const handleSettlement = async (req, res) => {
     }
 
     const settlementDetails = {
-      proofHash: `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`,
+      proofHash,
       clientName: req.clientName || 'Master System',
       sourceCurrency: sourceCurrency.toUpperCase(),
       targetCurrency: targetCurrency.toUpperCase(),
