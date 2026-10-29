@@ -9,8 +9,15 @@ const swaggerJsdoc = require('swagger-jsdoc');
 
 // Import Route Handlers
 const webhookRoutes = require('./routes/webhooks');
-const webhookRoutes = require('./routes/webhooks'); // Line 11[cite: 3]
-const healthRoutes = require('./routes/health');   // Line 12 (NEW)
+
+// Optional health route import with fallback
+let healthRoutes = null;
+try {
+  healthRoutes = require('./routes/health');
+} catch (e) {
+  // Safe fallback if routes/health.js does not exist
+}
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
@@ -18,7 +25,7 @@ const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee
 // Configurable Credentials & Fallbacks
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_secret_key_123';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -77,36 +84,9 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api', apiLimiter);
-// --- SWAGGER UI SETUP ---
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'SettleX B2B FX Engine API',
-      version: '1.0.0',
-      description: 'Production-grade double-entry settlement engine'
-    },
-    servers: [
-      {
-        url: 'https://settlex-5qfu.onrender.com'
-      }
-    ]
-  },
-  apis: ['./server.js', './routes/*.js']
-};
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-
 
 // -----------------------------------------------------------------------------
-// 4. ROUTE MOUNTING
-// Direct mounting under /api ensures /api/baas/callback resolves correctly
-// -----------------------------------------------------------------------------
-app.use('/api', webhookRoutes);
-
-// -----------------------------------------------------------------------------
-// 5. SWAGGER / OPENAPI SPECIFICATION
+// 4. SWAGGER / OPENAPI SPECIFICATION SETUP
 // -----------------------------------------------------------------------------
 const swaggerOptions = {
   definition: {
@@ -118,7 +98,7 @@ const swaggerOptions = {
     },
     servers: [
       { url: 'https://settlex-5qfu.onrender.com', description: 'Production Engine' },
-      { url: 'http://localhost:10000', description: 'Local Development' }
+      { url: `http://localhost:${PORT}`, description: 'Local Development' }
     ],
     components: {
       securitySchemes: {
@@ -134,7 +114,18 @@ const swaggerOptions = {
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
+
+// Serve Swagger UI on both /api-docs and /docs endpoints
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// -----------------------------------------------------------------------------
+// 5. ROUTE MOUNTING
+// -----------------------------------------------------------------------------
+app.use('/api', webhookRoutes);
+if (healthRoutes) {
+  app.use('/api', healthRoutes);
+}
 
 // -----------------------------------------------------------------------------
 // 6. MULTI-TENANT API KEY AUTHENTICATION MIDDLEWARE
@@ -540,7 +531,7 @@ app.post('/api/settle-double-entry', requireApiKey, handleSettlement);
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`[SettleX Engine Online] Running on Port ${PORT}`);
-    console.log(`[Swagger Docs] Live at http://localhost:${PORT}/docs`);
+    console.log(`[Swagger Docs] Live at http://localhost:${PORT}/api-docs`);
   });
 }
 
