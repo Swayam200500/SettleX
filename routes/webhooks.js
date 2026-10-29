@@ -39,11 +39,21 @@ function verifyWebhookSignature(req, res, next) {
     return next();
   }
 
-  const hmac = crypto.createHmac('sha256', WEBHOOK_SECRET);
-  const digest = hmac.update(JSON.stringify(req.body)).digest('hex');
+  try {
+    const payload = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    const expectedDigest = crypto
+      .createHmac('sha256', WEBHOOK_SECRET)
+      .update(payload)
+      .digest('hex');
 
-  if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
-    return next();
+    const sigBuffer = Buffer.from(signature);
+    const digestBuffer = Buffer.from(expectedDigest);
+
+    if (sigBuffer.length === digestBuffer.length && crypto.timingSafeEqual(sigBuffer, digestBuffer)) {
+      return next();
+    }
+  } catch (err) {
+    console.warn('[Webhook Auth Warning]: Signature validation error:', err.message);
   }
 
   return res.status(403).json({ error: 'Invalid signature verification failed' });
