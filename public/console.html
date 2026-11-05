@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,6 +33,11 @@
       display: grid;
       grid-template-columns: 1fr 1.2fr;
       gap: 2rem;
+    }
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
     }
     .card {
       background-color: var(--card-bg);
@@ -95,9 +101,19 @@
       border: 1px solid var(--border);
     }
     .balance-val {
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       font-weight: 700;
       margin-top: 0.4rem;
+      color: #1a030d;
+    }
+    .btn-refresh {
+      background-color: #d8cebe;
+      color: #4a3b32;
+      padding: 0.8rem;
+      font-size: 0.85rem;
+    }
+    .btn-refresh:hover {
+      background-color: #c4b8a6;
     }
     pre {
       background-color: #ffffff;
@@ -143,9 +159,9 @@
       <div class="form-group">
         <label>Target Currency</label>
         <select id="targetCurrency">
+          <option value="INR" selected>INR (Indian Rupee)</option>
           <option value="EUR">EUR</option>
           <option value="USD">USD</option>
-          <option value="INR">INR</option>
         </select>
       </div>
 
@@ -165,8 +181,12 @@
             <label>Treasury EUR</label>
             <div class="balance-val" id="eurBal">€850,000.00</div>
           </div>
+          <div class="balance-box">
+            <label>Treasury INR</label>
+            <div class="balance-val" id="inrBal">₹0.00</div>
+          </div>
         </div>
-        <button id="refreshBtn" style="background-color: #d8cebe; color: #4a3b32;">Refresh Balances</button>
+        <button id="refreshBtn" class="btn-refresh">Refresh Balances Now</button>
       </div>
 
       <div class="card">
@@ -181,20 +201,30 @@
     const submitBtn = document.getElementById('submitBtn');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // Fetch Balances
+    // Live Balances State Tracker
+    let localBalances = { USD: 1000000, EUR: 850000, INR: 0 };
+
+    function renderBalances() {
+      document.getElementById('usdBal').innerText = `$${localBalances.USD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('eurBal').innerText = `€${localBalances.EUR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('inrBal').innerText = `₹${localBalances.INR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
     async function loadBalances() {
       try {
-        const res = await fetch('/api/treasury', {
-          headers: { 'Cache-Control': 'no-cache' }
-        });
-        const data = await res.json();
-        if (data.balances) {
-          document.getElementById('usdBal').innerText = `$${parseFloat(data.balances.USD).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-          document.getElementById('eurBal').innerText = `€${parseFloat(data.balances.EUR).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        const res = await fetch('/api/treasury', { headers: { 'Cache-Control': 'no-cache' } });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.balances) {
+            localBalances.USD = parseFloat(data.balances.USD ?? localBalances.USD);
+            localBalances.EUR = parseFloat(data.balances.EUR ?? localBalances.EUR);
+            localBalances.INR = parseFloat(data.balances.INR ?? localBalances.INR);
+          }
         }
       } catch (err) {
-        console.error('Balance error:', err);
+        console.warn('Backend fetch fallback:', err);
       }
+      renderBalances();
     }
 
     // Execute Settlement
@@ -202,7 +232,7 @@
       outputBox.innerText = 'Processing double-entry transaction...';
 
       const apiKey = document.getElementById('apiKeyInput').value;
-      const amount = document.getElementById('amountInput').value;
+      const amountVal = parseFloat(document.getElementById('amountInput').value) || 0;
       const sourceCurrency = document.getElementById('sourceCurrency').value;
       const targetCurrency = document.getElementById('targetCurrency').value;
       const idempotencyKey = `tx_v100_${Date.now()}`;
@@ -216,20 +246,39 @@
             'idempotency-key': idempotencyKey,
             'Cache-Control': 'no-cache'
           },
-          body: JSON.stringify({ sourceCurrency, targetCurrency, amount: parseFloat(amount) })
+          body: JSON.stringify({ sourceCurrency, targetCurrency, amount: amountVal })
         });
 
         const data = await res.json();
         outputBox.innerText = JSON.stringify(data, null, 2);
-        loadBalances();
+
+        // Instant local ledger update when settlement completes successfully
+        if (data && data.success && data.settlementDetails) {
+          const details = data.settlementDetails;
+          if (sourceCurrency === 'USD') localBalances.USD -= amountVal;
+          if (sourceCurrency === 'EUR') localBalances.EUR -= amountVal;
+
+          if (targetCurrency === 'INR') localBalances.INR += parseFloat(details.convertedAmount || 0);
+          if (targetCurrency === 'EUR') localBalances.EUR += parseFloat(details.convertedAmount || 0);
+          if (targetCurrency === 'USD') localBalances.USD += parseFloat(details.convertedAmount || 0);
+
+          renderBalances();
+        }
+
+        // Fetch authoritative server balances
+        setTimeout(loadBalances, 500);
       } catch (err) {
         outputBox.innerText = `Error: ${err.message}`;
       }
     });
 
     refreshBtn.addEventListener('click', loadBalances);
+
+    // Initial load and polling loop
     loadBalances();
+    setInterval(loadBalances, 2000);
   </script>
 
 </body>
 </html>
+Displaying console.html.
