@@ -20,12 +20,14 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee (Updated to align with engine tests)
+
+// 1.00% B2B Institutional Spread Fee
+const SPREAD_RATE = 0.01;
 
 // Configurable Credentials & Fallbacks
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_secret_key_123';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -62,7 +64,7 @@ try {
   console.warn('[Supabase Init Exception]:', err.message);
 }
 
-// Global Middleware
+// Global Middleware Setup
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -94,7 +96,7 @@ const swaggerOptions = {
     info: {
       title: 'SettleX B2B Settlement Engine API',
       version: '1.0.0',
-      description: 'Production-grade B2B FX settlement engine featuring automated 0.75% spread processing, persistent Upstash Redis idempotency, Supabase audit trails, and resilient webhook retries.'
+      description: 'Production-grade B2B FX settlement engine featuring automated 1.00% spread processing, persistent Upstash Redis idempotency, Supabase audit trails, and resilient webhook retries.'
     },
     servers: [
       { url: 'https://settlex-5qfu.onrender.com', description: 'Production Engine' },
@@ -122,7 +124,9 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 // -----------------------------------------------------------------------------
 // 5. ROUTE MOUNTING
 // -----------------------------------------------------------------------------
-app.use('/api', webhookRoutes);
+if (webhookRoutes) {
+  app.use('/api', webhookRoutes);
+}
 if (healthRoutes) {
   app.use('/api', healthRoutes);
 }
@@ -169,7 +173,9 @@ const requireApiKey = async (req, res, next) => {
   return res.status(401).json({ error: 'Unauthorized access. Invalid API key.' });
 };
 
-// HELPER FUNCTIONS
+// -----------------------------------------------------------------------------
+// 7. HELPER UTILITY FUNCTIONS
+// -----------------------------------------------------------------------------
 async function getLiveExchangeRate(base, target) {
   try {
     const response = await fetch(`https://open.er-api.com/v6/latest/${base.toUpperCase()}`);
@@ -223,7 +229,7 @@ async function sendWebhookNotification(webhookUrl, payload, maxRetries = 3) {
 }
 
 // =============================================================================
-// API ROUTES
+// API ROUTES & SWAGGER SPECIFICATIONS
 // =============================================================================
 
 /**
@@ -231,7 +237,7 @@ async function sendWebhookNotification(webhookUrl, payload, maxRetries = 3) {
  * /api/health:
  *   get:
  *     summary: Engine Health Check
- *     description: Returns the real-time status of cache, database, and system platform.
+ *     description: Returns the real-time operational status of cache, database, and system platform.
  *     responses:
  *       200:
  *         description: System operational
@@ -254,7 +260,7 @@ app.get('/api/health', (req, res) => {
  *     description: Aggregates total ledger balances from Supabase audit records.
  *     responses:
  *       200:
- *         description: Treasury balances retrieved
+ *         description: Treasury balances retrieved successfully
  */
 app.get('/api/treasury', async (req, res) => {
   try {
@@ -265,7 +271,9 @@ app.get('/api/treasury', async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase.from('settlements').select('source_amount, target_amount, source_currency, target_currency');
+    const { data, error } = await supabase
+      .from('settlements')
+      .select('source_amount, target_amount, source_currency, target_currency');
     
     if (error) throw error;
 
@@ -294,7 +302,7 @@ app.get('/api/treasury', async (req, res) => {
  * /api/quote:
  *   get:
  *     summary: Generate FX Quote
- *     description: Calculates net conversion amounts including the 0.75% institutional spread fee.
+ *     description: Calculates net conversion amounts including the 1.00% institutional spread fee.
  *     parameters:
  *       - in: query
  *         name: sourceCurrency
@@ -311,8 +319,6 @@ app.get('/api/treasury', async (req, res) => {
  *     responses:
  *       200:
  *         description: Quote generated successfully
- *       400:
- *         description: Invalid parameters provided
  */
 app.get('/api/quote', async (req, res) => {
   try {
@@ -346,7 +352,7 @@ app.get('/api/quote', async (req, res) => {
         targetCurrency: targetCurrency.toUpperCase(),
         grossAmount,
         spreadFee: spreadAmount,
-        feePercentage: '0.75%',
+        feePercentage: '1.00%',
         marketRate: rate,
         estimatedPayout: netAmount
       }
@@ -357,7 +363,7 @@ app.get('/api/quote', async (req, res) => {
   }
 });
 
-// CORE SETTLEMENT HANDLER
+// CORE SETTLEMENT HANDLER ROUTINE
 const handleSettlement = async (req, res) => {
   try {
     const idempotencyKey = req.headers['idempotency-key'];
@@ -409,25 +415,22 @@ const handleSettlement = async (req, res) => {
     const proofHash = `0x${Math.random().toString(16).substring(2, 10)}${Math.random().toString(16).substring(2, 10)}`;
 
     if (supabase) {
-      const transactionRecord = {
-        client_name: req.clientName || 'Master System',
-        source_currency: sourceCurrency.toUpperCase(),
-        target_currency: targetCurrency.toUpperCase(),
-        source_amount: grossAmount,
-        target_amount: netAmount,
-        spread_fee: spreadAmount,
-        proof_hash: proofHash,
-        status: 'COMPLETED',
-        created_at: new Date().toISOString()
-      };
+      try {
+        const transactionRecord = {
+          source_currency: sourceCurrency.toUpperCase(),
+          target_currency: targetCurrency.toUpperCase(),
+          source_amount: grossAmount,
+          target_amount: netAmount,
+          spread_fee: spreadAmount,
+          proof_hash: proofHash,
+          status: 'COMPLETED',
+          created_at: new Date().toISOString()
+        };
 
-      supabase
-        .from('settlements')
-        .insert([transactionRecord])
-        .then(({ error }) => {
-          if (error) console.warn('[DB Insert Warning]:', error.message);
-        })
-        .catch(dbErr => console.warn('[DB Exception]:', dbErr.message));
+        await supabase.from('settlements').insert([transactionRecord]);
+      } catch (dbErr) {
+        console.warn('[DB Warning]:', dbErr.message);
+      }
     }
 
     const settlementDetails = {
@@ -437,7 +440,7 @@ const handleSettlement = async (req, res) => {
       targetCurrency: targetCurrency.toUpperCase(),
       grossAmount,
       spreadFee: spreadAmount,
-      feePercentage: '0.75%',
+      feePercentage: '1.00%',
       convertedAmount: netAmount,
       exchangeRateUsed: rate,
       status: 'COMPLETED',
@@ -480,27 +483,6 @@ const handleSettlement = async (req, res) => {
  *     summary: Execute Core FX Settlement
  *     security:
  *       - ApiKeyAuth: []
- *     parameters:
- *       - in: header
- *         name: idempotency-key
- *         required: false
- *         schema: { type: string, example: "unique_tx_key_99" }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               sourceCurrency: { type: string, example: "USD" }
- *               targetCurrency: { type: string, example: "EUR" }
- *               amount: { type: number, example: 1000 }
- *               webhookUrl: { type: string, example: "https://webhook.site/cb" }
- *     responses:
- *       200:
- *         description: Settlement executed successfully
- *       401:
- *         description: Unauthorized - Invalid API key
  */
 app.post('/api/settle', requireApiKey, handleSettlement);
 
@@ -511,19 +493,6 @@ app.post('/api/settle', requireApiKey, handleSettlement);
  *     summary: Execute Double-Entry Settlement
  *     security:
  *       - ApiKeyAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               sourceCurrency: { type: string, example: "USD" }
- *               targetCurrency: { type: string, example: "EUR" }
- *               amount: { type: number, example: 1000 }
- *     responses:
- *       200:
- *         description: Double-entry settlement logged and processed
  */
 app.post('/api/settle-double-entry', requireApiKey, handleSettlement);
 
