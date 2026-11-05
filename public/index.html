@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+html_code = """<!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
@@ -592,12 +592,12 @@
 
     <!-- 5. ENHANCED SANDBOX TERMINAL WITH STEP-BY-STEP TELEMETRY & CONTROLS -->
     <section id="sandbox" class="py-20 px-6 max-w-6xl mx-auto">
-      <div class="glass-card rounded-3xl p-8 sm:p-10 border-champagne/40 space-y-6">
+      <div class="glass-card rounded-3xl p-8 sm:p-10 border border-champagne/30 space-y-6">
         
-        <!-- Terminal Header with Status Badges and Action Controls -->
+        <!-- Terminal Header Bar -->
         <div class="flex flex-wrap items-center justify-between border-b border-champagne/15 pb-4 gap-4">
           <div class="flex items-center gap-2">
-            <div class="w-3 h-3 rounded-full bg-rosewine"></div>
+            <div class="w-3 h-3 rounded-full bg-crimson"></div>
             <div class="w-3 h-3 rounded-full bg-champagne"></div>
             <div class="w-3 h-3 rounded-full bg-mintemerald"></div>
             <span class="text-xs font-mono text-beigesoft ml-2 font-semibold">settlex-wine-terminal-v4.2</span>
@@ -613,48 +613,48 @@
           </div>
         </div>
 
-        <!-- Treasury Balance Row -->
+        <!-- Live Supabase Balances Row -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="p-4 rounded-2xl bg-deepwine/90 border border-champagne/25 flex items-center justify-between">
+          <div class="p-5 rounded-2xl bg-deepwine/90 border border-champagne/25 flex items-center justify-between">
             <div>
               <div class="text-xs font-mono text-beigesoft/70">Supabase Ledger (USD)</div>
-              <div id="terminal-usd-bal" class="text-2xl font-extrabold font-heading text-champagne mt-0.5">$1,000,000.00</div>
+              <div id="terminal-usd-bal" class="text-2xl sm:text-3xl font-extrabold font-heading text-champagne mt-0.5">$1,000,000.00</div>
             </div>
             <i data-lucide="database" class="w-6 h-6 text-champagne/60"></i>
           </div>
 
-          <div class="p-4 rounded-2xl bg-deepwine/90 border border-champagne/25 flex items-center justify-between">
+          <div class="p-5 rounded-2xl bg-deepwine/90 border border-champagne/25 flex items-center justify-between">
             <div>
               <div class="text-xs font-mono text-beigesoft/70">Supabase Ledger (EUR)</div>
-              <div id="terminal-eur-bal" class="text-2xl font-extrabold font-heading text-champagne mt-0.5">€850,000.00</div>
+              <div id="terminal-eur-bal" class="text-2xl sm:text-3xl font-extrabold font-heading text-champagne mt-0.5">€850,000.00</div>
             </div>
             <i data-lucide="server" class="w-6 h-6 text-champagne/60"></i>
           </div>
         </div>
 
-        <!-- Execution Input Controls -->
+        <!-- Controls Input Form -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end bg-deepwine/60 p-5 rounded-2xl border border-champagne/20">
-          <div class="sm:col-span-4 space-y-1">
-            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold">API Security Key</label>
-            <input type="text" id="terminal-apiKey" value="settlex_secret_key_123" class="w-full px-3 py-2.5 rounded-xl font-mono text-xs">
+          <div class="sm:col-span-4 space-y-1.5">
+            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold block">API Security Key</label>
+            <input type="text" id="terminal-apiKey" value="settlex_secret_key_123" class="w-full px-4 py-3 rounded-xl font-mono text-xs bg-deepwine/90 border border-champagne/30 text-beige focus:outline-none focus:border-champagne">
           </div>
 
-          <div class="sm:col-span-3 space-y-1">
-            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold">Principal Amount</label>
-            <input type="number" id="terminal-amount" value="50000" class="w-full px-3 py-2.5 rounded-xl font-mono text-xs">
+          <div class="sm:col-span-3 space-y-1.5">
+            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold block">Principal Amount</label>
+            <input type="number" id="terminal-amount" value="50000" class="w-full px-4 py-3 rounded-xl font-mono text-xs bg-deepwine/90 border border-champagne/30 text-beige focus:outline-none focus:border-champagne">
           </div>
 
-          <div class="sm:col-span-2 space-y-1">
-            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold">Source</label>
-            <select id="terminal-source" class="w-full px-3 py-2.5 rounded-xl font-mono text-xs">
+          <div class="sm:col-span-2 space-y-1.5">
+            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold block">Source</label>
+            <select id="terminal-source" class="w-full px-3 py-3 rounded-xl font-mono text-xs bg-deepwine/90 border border-champagne/30 text-champagne focus:outline-none focus:border-champagne cursor-pointer">
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
             </select>
           </div>
 
-          <div class="sm:col-span-2 space-y-1">
-            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold">Target</label>
-            <select id="terminal-target" class="w-full px-3 py-2.5 rounded-xl font-mono text-xs">
+          <div class="sm:col-span-2 space-y-1.5">
+            <label class="text-[11px] font-mono uppercase text-beigesoft font-bold block">Target</label>
+            <select id="terminal-target" class="w-full px-3 py-3 rounded-xl font-mono text-xs bg-deepwine/90 border border-champagne/30 text-champagne focus:outline-none focus:border-champagne cursor-pointer">
               <option value="EUR">EUR</option>
               <option value="USD">USD</option>
               <option value="INR">INR</option>
@@ -662,19 +662,19 @@
           </div>
 
           <div class="sm:col-span-1">
-            <button id="terminal-execute-btn" onclick="executeTerminalSettlement()" class="w-full py-2.5 rounded-xl font-mono text-xs font-bold bg-champagne text-deepwine hover:bg-beigesoft transition-all flex items-center justify-center">
-              <i data-lucide="play" class="w-4 h-4"></i>
+            <button id="terminal-execute-btn" onclick="executeTerminalSettlement()" class="w-full py-3 rounded-xl font-mono text-xs font-bold bg-champagne text-deepwine hover:bg-beigesoft transition-all flex items-center justify-center shadow-lg">
+              <i data-lucide="play" class="w-4 h-4 fill-deepwine"></i>
             </button>
           </div>
         </div>
 
-        <!-- Telemetry Log Output Box -->
+        <!-- Telemetry Log Window -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-xs font-mono text-beigesoft font-bold">Telemetry Stream & Proof-of-Execution Payload</span>
             <span class="text-[10px] font-mono text-champagne/80">Upstash Redis Idempotency Lock Active</span>
           </div>
-          <pre id="terminal-output-box" class="p-5 rounded-2xl bg-deepwine/95 border border-champagne/30 font-mono text-xs text-champagne overflow-x-auto min-h-[200px] max-h-[350px]">Ready for double-entry settlement execution...</pre>
+          <pre id="terminal-output-box" class="p-6 rounded-2xl bg-deepwine/95 border border-champagne/30 font-mono text-xs text-champagne overflow-x-auto min-h-[220px] max-h-[360px]">Ready for double-entry settlement execution...</pre>
         </div>
 
       </div>
@@ -1188,4 +1188,9 @@
     loadTreasuryBalances();
   </script>
 </body>
-</html>
+</html>"""
+
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html_code)
+
+print("HTML file index.html written successfully!")
