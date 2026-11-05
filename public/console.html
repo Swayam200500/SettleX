@@ -184,7 +184,9 @@
     // Fetch Balances
     async function loadBalances() {
       try {
-        const res = await fetch('/api/treasury');
+        const res = await fetch('/api/treasury', {
+          headers: { 'Cache-Control': 'no-cache' }
+        });
         const data = await res.json();
         if (data.balances) {
           document.getElementById('usdBal').innerText = `$${parseFloat(data.balances.USD).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
@@ -203,7 +205,7 @@
       const amount = document.getElementById('amountInput').value;
       const sourceCurrency = document.getElementById('sourceCurrency').value;
       const targetCurrency = document.getElementById('targetCurrency').value;
-      const idempotencyKey = `tx_${Date.now()}`;
+      const idempotencyKey = `tx_v100_${Date.now()}`;
 
       try {
         const res = await fetch('/api/settle-double-entry', {
@@ -211,9 +213,10 @@
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
-            'idempotency-key': idempotencyKey
+            'idempotency-key': idempotencyKey,
+            'Cache-Control': 'no-cache'
           },
-          body: JSON.stringify({ sourceCurrency, targetCurrency, amount })
+          body: JSON.stringify({ sourceCurrency, targetCurrency, amount: parseFloat(amount) })
         });
 
         const data = await res.json();
