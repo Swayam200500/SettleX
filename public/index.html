@@ -366,7 +366,7 @@
         </h2>
 
         <p class="text-base sm:text-lg text-beigesoft max-w-2xl mx-auto font-normal leading-relaxed bg-deepwine/80 p-5 rounded-2xl border border-champagne/20 backdrop-blur-md shadow-xl">
-          Bypass traditional correspondent banking friction and opaque 4% FX spreads. Route corporate treasury across White Gold & Platinum WebGL nodes with zero hidden markups.
+          Bypass traditional correspondent banking friction and opaque FX spreads. Route corporate treasury across White Gold & Platinum WebGL nodes with zero hidden markups.
         </p>
 
         <!-- Corridor View Controls -->
@@ -430,16 +430,16 @@
               Global Corridor Pair
             </label>
             <select id="calc-currency-pair" onchange="onCurrencyChange()" class="w-full py-4 px-4 rounded-2xl font-heading text-lg font-bold text-champagne cursor-pointer shadow-inner">
-              <option value="USD-CNY" data-symbol="$" data-rate="7.235" selected>USD ➔ CNY (USA to China / Shanghai)</option>
-              <option value="USD-INR" data-symbol="$" data-rate="83.12">USD ➔ INR (USA to India)</option>
-              <option value="GBP-SGD" data-symbol="£" data-rate="1.714">GBP ➔ SGD (UK to Singapore)</option>
-              <option value="EUR-USD" data-symbol="€" data-rate="1.085">EUR ➔ USD (Europe to USA)</option>
-              <option value="USD-JPY" data-symbol="$" data-rate="151.20">USD ➔ JPY (USA to Japan)</option>
-              <option value="USD-AED" data-symbol="$" data-rate="3.673">USD ➔ AED (USA to UAE)</option>
-              <option value="USD-AUD" data-symbol="$" data-rate="1.528">USD ➔ AUD (USA to Australia)</option>
-              <option value="USD-CAD" data-symbol="$" data-rate="1.356">USD ➔ CAD (USA to Canada)</option>
-              <option value="USD-BRL" data-symbol="$" data-rate="5.062">USD ➔ BRL (USA to Brazil)</option>
-              <option value="USD-KRW" data-symbol="$" data-rate="1342.1">USD ➔ KRW (USA to South Korea)</option>
+              <option value="USD-CNY" data-source="USD" data-target="CNY" data-symbol="$" data-rate="7.235" selected>USD ➔ CNY (USA to China / Shanghai)</option>
+              <option value="USD-INR" data-source="USD" data-target="INR" data-symbol="$" data-rate="83.12">USD ➔ INR (USA to India)</option>
+              <option value="GBP-SGD" data-source="GBP" data-target="SGD" data-symbol="£" data-rate="1.714">GBP ➔ SGD (UK to Singapore)</option>
+              <option value="EUR-USD" data-source="EUR" data-target="USD" data-symbol="€" data-rate="1.085">EUR ➔ USD (Europe to USA)</option>
+              <option value="USD-JPY" data-source="USD" data-target="JPY" data-symbol="$" data-rate="151.20">USD ➔ JPY (USA to Japan)</option>
+              <option value="USD-AED" data-source="USD" data-target="AED" data-symbol="$" data-rate="3.673">USD ➔ AED (USA to UAE)</option>
+              <option value="USD-AUD" data-source="USD" data-target="AUD" data-symbol="$" data-rate="1.528">USD ➔ AUD (USA to Australia)</option>
+              <option value="USD-CAD" data-source="USD" data-target="CAD" data-symbol="$" data-rate="1.356">USD ➔ CAD (USA to Canada)</option>
+              <option value="USD-BRL" data-source="USD" data-target="BRL" data-symbol="$" data-rate="5.062">USD ➔ BRL (USA to Brazil)</option>
+              <option value="USD-KRW" data-source="USD" data-target="KRW" data-symbol="$" data-rate="1342.1">USD ➔ KRW (USA to South Korea)</option>
             </select>
           </div>
 
@@ -843,13 +843,31 @@
     // Initialize Lucide Icons
     lucide.createIcons();
 
-    // 1. CALCULATOR LOGIC
+    // 1. CALCULATOR LOGIC WITH ANIMATED ROLLING COUNTER & DYNAMIC SYMBOLS
     const calcInput = document.getElementById('calc-manual-input');
     const currencySelect = document.getElementById('calc-currency-pair');
     const symbolPrefix = document.getElementById('calc-symbol-prefix');
     const swiftVal = document.getElementById('swift-fee-val');
     const settlexVal = document.getElementById('settlex-fee-val');
     const savedVal = document.getElementById('capital-saved-val');
+
+    let prevSwift = 0;
+    let prevSettlex = 0;
+    let prevSaved = 0;
+
+    function animateCounter(element, startVal, endVal, symbol, duration = 400) {
+      let startTime = null;
+      function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        const current = Math.round(startVal + progress * (endVal - startVal));
+        element.innerText = `${symbol}${current.toLocaleString()}`;
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+      requestAnimationFrame(step);
+    }
 
     function updateCalculator() {
       const amount = parseFloat(calcInput.value) || 0;
@@ -858,18 +876,37 @@
 
       symbolPrefix.innerText = symbol;
 
-      // 4.0% SWIFT vs 1.00% SettleX
-      const swiftFee = amount * 0.04;
-      const settlexFee = amount * 0.01;
+      // 4.0% SWIFT vs 1.00% SettleX (Strict 0.01 Rate)
+      const swiftFee = Math.round(amount * 0.04);
+      const settlexFee = Math.round(amount * 0.01);
       const saved = swiftFee - settlexFee;
 
-      swiftVal.innerText = `${symbol}${Math.round(swiftFee).toLocaleString()}`;
-      settlexVal.innerText = `${symbol}${Math.round(settlexFee).toLocaleString()}`;
-      savedVal.innerText = `${symbol}${Math.round(saved).toLocaleString()}`;
+      animateCounter(swiftVal, prevSwift, swiftFee, symbol);
+      animateCounter(settlexVal, prevSettlex, settlexFee, symbol);
+      animateCounter(savedVal, prevSaved, saved, symbol);
+
+      prevSwift = swiftFee;
+      prevSettlex = settlexFee;
+      prevSaved = saved;
     }
 
     calcInput.addEventListener('input', updateCalculator);
-    function onCurrencyChange() { updateCalculator(); }
+
+    function onCurrencyChange() {
+      const selectedOpt = currencySelect.options[currencySelect.selectedIndex];
+      const source = selectedOpt.getAttribute('data-source');
+      const target = selectedOpt.getAttribute('data-target');
+
+      // Sync Terminal selects with global currency picker
+      const termSource = document.getElementById('terminal-source');
+      const termTarget = document.getElementById('terminal-target');
+      if (termSource && termTarget) {
+        if ([...termSource.options].some(o => o.value === source)) termSource.value = source;
+        if ([...termTarget.options].some(o => o.value === target)) termTarget.value = target;
+      }
+      updateCalculator();
+    }
+
     function setPresetAmount(amt) {
       calcInput.value = amt;
       updateCalculator();
@@ -943,7 +980,9 @@
 
     async function loadTreasuryBalances() {
       try {
-        const res = await fetch('/api/treasury');
+        const res = await fetch('/api/treasury', {
+          headers: { 'Cache-Control': 'no-cache' }
+        });
         const data = await res.json();
         if (data.balances) {
           document.getElementById('terminal-usd-bal').innerText = `$${parseFloat(data.balances.USD).toLocaleString(undefined, {minimumFractionDigits: 2})}`;
@@ -958,10 +997,10 @@
       outputBox.innerText = '⚡ [1/3] Contacting SettleX Node Network...\n⚡ [2/3] Locking Spot Rate & Computing 1.00% Spread...\n⚡ [3/3] Committing Double-Entry Ledger to Supabase PostgreSQL...';
 
       const apiKey = document.getElementById('terminal-apiKey').value;
-      const amount = document.getElementById('terminal-amount').value;
+      const amount = parseFloat(document.getElementById('terminal-amount').value) || 0;
       const sourceCurrency = document.getElementById('terminal-source').value;
       const targetCurrency = document.getElementById('terminal-target').value;
-      const idempotencyKey = `tx_${Date.now()}`;
+      const idempotencyKey = `tx_v100_${Date.now()}`;
 
       try {
         const res = await fetch('/api/settle-double-entry', {
@@ -969,7 +1008,8 @@
           headers: {
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
-            'idempotency-key': idempotencyKey
+            'idempotency-key': idempotencyKey,
+            'Cache-Control': 'no-cache'
           },
           body: JSON.stringify({ sourceCurrency, targetCurrency, amount })
         });
