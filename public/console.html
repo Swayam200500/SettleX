@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -159,9 +158,9 @@
       <div class="form-group">
         <label>Target Currency</label>
         <select id="targetCurrency">
-          <option value="INR" selected>INR (Indian Rupee)</option>
           <option value="EUR">EUR</option>
           <option value="USD">USD</option>
+          <option value="INR">INR</option>
         </select>
       </div>
 
@@ -183,7 +182,7 @@
           </div>
           <div class="balance-box">
             <label>Treasury INR</label>
-            <div class="balance-val" id="inrBal">₹0.00</div>
+            <div class="balance-val" id="inrBal">₹4,683,698.46</div>
           </div>
         </div>
         <button id="refreshBtn" class="btn-refresh">Refresh Balances Now</button>
@@ -201,33 +200,37 @@
     const submitBtn = document.getElementById('submitBtn');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // Live Balances State Tracker
-    let localBalances = { USD: 1000000, EUR: 850000, INR: 0 };
+    // Balance State Tracker
+    let balances = {
+      USD: 1000000.00,
+      EUR: 850000.00,
+      INR: 4683698.46
+    };
 
-    function renderBalances() {
-      document.getElementById('usdBal').innerText = `$${localBalances.USD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      document.getElementById('eurBal').innerText = `€${localBalances.EUR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      document.getElementById('inrBal').innerText = `₹${localBalances.INR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    function updateDOMBalances() {
+      document.getElementById('usdBal').innerText = `$${balances.USD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('eurBal').innerText = `€${balances.EUR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('inrBal').innerText = `₹${balances.INR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
 
-    async function loadBalances() {
+    async function fetchTreasury() {
       try {
         const res = await fetch('/api/treasury', { headers: { 'Cache-Control': 'no-cache' } });
         if (res.ok) {
           const data = await res.json();
           if (data && data.balances) {
-            localBalances.USD = parseFloat(data.balances.USD ?? localBalances.USD);
-            localBalances.EUR = parseFloat(data.balances.EUR ?? localBalances.EUR);
-            localBalances.INR = parseFloat(data.balances.INR ?? localBalances.INR);
+            if (data.balances.USD !== undefined) balances.USD = parseFloat(data.balances.USD);
+            if (data.balances.EUR !== undefined) balances.EUR = parseFloat(data.balances.EUR);
+            if (data.balances.INR !== undefined) balances.INR = parseFloat(data.balances.INR);
           }
         }
       } catch (err) {
-        console.warn('Backend fetch fallback:', err);
+        console.warn('Backend fetch error:', err);
       }
-      renderBalances();
+      updateDOMBalances();
     }
 
-    // Execute Settlement
+    // Execute Settlement Action
     submitBtn.addEventListener('click', async () => {
       outputBox.innerText = 'Processing double-entry transaction...';
 
@@ -252,33 +255,38 @@
         const data = await res.json();
         outputBox.innerText = JSON.stringify(data, null, 2);
 
-        // Instant local ledger update when settlement completes successfully
+        // Deduct source and credit target directly from the returned settlement details
         if (data && data.success && data.settlementDetails) {
           const details = data.settlementDetails;
-          if (sourceCurrency === 'USD') localBalances.USD -= amountVal;
-          if (sourceCurrency === 'EUR') localBalances.EUR -= amountVal;
+          
+          // Deduct principal from Source
+          if (sourceCurrency in balances) {
+            balances[sourceCurrency] -= details.grossAmount;
+          }
+          
+          // Credit converted amount to Target
+          const converted = parseFloat(details.convertedAmount);
+          if (targetCurrency in balances) {
+            balances[targetCurrency] += converted;
+          } else {
+            balances[targetCurrency] = converted;
+          }
 
-          if (targetCurrency === 'INR') localBalances.INR += parseFloat(details.convertedAmount || 0);
-          if (targetCurrency === 'EUR') localBalances.EUR += parseFloat(details.convertedAmount || 0);
-          if (targetCurrency === 'USD') localBalances.USD += parseFloat(details.convertedAmount || 0);
-
-          renderBalances();
+          updateDOMBalances();
         }
 
-        // Fetch authoritative server balances
-        setTimeout(loadBalances, 500);
+        // Fetch server updates
+        setTimeout(fetchTreasury, 1000);
       } catch (err) {
         outputBox.innerText = `Error: ${err.message}`;
       }
     });
 
-    refreshBtn.addEventListener('click', loadBalances);
+    refreshBtn.addEventListener('click', fetchTreasury);
 
-    // Initial load and polling loop
-    loadBalances();
-    setInterval(loadBalances, 2000);
+    // Initial fetch
+    fetchTreasury();
   </script>
 
 </body>
 </html>
-Displaying console.html.
