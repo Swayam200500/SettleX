@@ -69,12 +69,13 @@ async function setupTestReceiver() {
     console.log('✅ Bank Account Created! ID:', bankAccountId);
 
     console.log('\n========================================');
-    console.log('  PASTE THIS EXACT BODY INTO POSTMAN  ');
+    console.log('   PASTE THIS EXACT BODY INTO POSTMAN   ');
     console.log('========================================');
     console.log(JSON.stringify({
       customerId: receiverId,
       bankAccountId: bankAccountId,
       amount: 500,
+      settleXFee: 5.00, // Explicit 1.00% fee ($5 on $500)
       network: 'arbitrum_sepolia',
       token: 'USDB',
       currencyType: 'sender'
