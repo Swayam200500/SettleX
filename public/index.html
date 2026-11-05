@@ -366,7 +366,7 @@
         </h2>
 
         <p class="text-base sm:text-lg text-beigesoft max-w-2xl mx-auto font-normal leading-relaxed bg-deepwine/80 p-5 rounded-2xl border border-champagne/20 backdrop-blur-md shadow-xl">
-          Bypass traditional correspondent banking friction and opaque FX spreads. Route corporate treasury across White Gold & Platinum WebGL nodes with zero hidden markups.
+          Bypass traditional correspondent banking friction and opaque FX spreads. Route corporate treasury across 24K Gold & Platinum WebGL nodes with zero hidden markups.
         </p>
 
         <!-- Corridor View Controls -->
@@ -389,7 +389,7 @@
       <div class="pointer-events-auto pt-8 flex flex-col items-center gap-2 text-champagne text-xs tracking-wider font-mono uppercase bg-deepwine/85 px-6 py-3 rounded-full border border-champagne/30 backdrop-blur-md shadow-lg animate-bounce">
         <span class="flex items-center gap-2">
           <i data-lucide="arrow-down-circle" class="w-4 h-4 text-rosewine"></i>
-          Scroll Down: Engraved Currency Coins ($ € ₹ £ ¥) Toss in Viewport Margins
+          Scroll Down: Engraved Currency Coins ($ € ₹ £ ¥) Orbit Smoothly
         </span>
       </div>
     </section>
@@ -696,274 +696,304 @@
 
   </div>
 
-  <!-- Three.js 3D WebGL Background & Interactive Mechanics Script -->
+  <!-- Three.js WebGL Scene: Globe Core + Gold Wireframe + OrbitControls + Engraved 24K Gold Coins -->
   <script type="module">
     import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    // 1. THREE.JS SCENE SETUP
-    const canvasContainer = document.getElementById('webgl-bg-canvas');
+    // SCENE & CAMERA SETUP
+    const container = document.getElementById('webgl-bg-canvas');
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x1a030d, 0.025);
+    scene.fog = new THREE.FogExp2(0x1a030d, 0.012);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 0, 25);
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 0, 45);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    canvasContainer.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.enableZoom = false;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.8;
+
+    // LIGHTING
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
     scene.add(ambientLight);
 
-    const pointLight1 = new THREE.PointLight(0xe6c594, 3.5, 100);
-    pointLight1.position.set(15, 15, 15);
-    scene.add(pointLight1);
+    const champagneLight = new THREE.DirectionalLight(0xe6c594, 3.5);
+    champagneLight.position.set(20, 25, 20);
+    scene.add(champagneLight);
 
-    const pointLight2 = new THREE.PointLight(0xc94a6e, 2.5, 100);
-    pointLight2.position.set(-15, -15, 15);
-    scene.add(pointLight2);
+    const goldPointLight = new THREE.PointLight(0xf59e0b, 5, 60);
+    goldPointLight.position.set(15, 10, 25);
+    scene.add(goldPointLight);
 
-    // 2. REAL 3D WIREFRAME GLOBE SPHERE
+    const roseLight = new THREE.DirectionalLight(0xc94a6e, 2.5);
+    roseLight.position.set(-20, -20, -20);
+    scene.add(roseLight);
+
+    // GLOBE GROUP
     const globeGroup = new THREE.Group();
     scene.add(globeGroup);
 
-    // Sphere Mesh
-    const sphereRadius = 8;
-    const sphereGeom = new THREE.SphereGeometry(sphereRadius, 36, 36);
-    
-    // Outer Glow Wireframe
-    const wireframeMat = new THREE.MeshBasicMaterial({
+    // Inner Core Sphere
+    const sphereGeo = new THREE.SphereGeometry(12, 64, 64);
+    const sphereMat = new THREE.MeshStandardMaterial({
+      color: 0x2b0818,
+      roughness: 0.4,
+      metalness: 0.3,
+      emissive: 0x1a030d,
+      emissiveIntensity: 0.6
+    });
+    const globeCore = new THREE.Mesh(sphereGeo, sphereMat);
+    globeGroup.add(globeCore);
+
+    // Outer Gold Wireframe Matrix
+    const wireGeo = new THREE.SphereGeometry(12.2, 32, 32);
+    const wireMat = new THREE.MeshBasicMaterial({
       color: 0xe6c594,
       wireframe: true,
       transparent: true,
-      opacity: 0.18
+      opacity: 0.25
     });
-    const globeMesh = new THREE.Mesh(sphereGeom, wireframeMat);
-    globeGroup.add(globeMesh);
+    const globeWire = new THREE.Mesh(wireGeo, wireMat);
+    globeGroup.add(globeWire);
 
-    // Latitude & Longitude Rings
-    const ringMat = new THREE.LineBasicMaterial({ color: 0xe6c594, transparent: true, opacity: 0.3 });
-
-    // Equator & Latitude Rings
-    for (let lat = -60; lat <= 60; lat += 20) {
-      const rad = (lat * Math.PI) / 180;
-      const r = sphereRadius * Math.cos(rad);
-      const y = sphereRadius * Math.sin(rad);
-
-      const points = [];
-      for (let i = 0; i <= 64; i++) {
-        const theta = (i / 64) * Math.PI * 2;
-        points.push(new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta)));
-      }
-      const ringGeom = new THREE.BufferGeometry().setFromPoints(points);
-      const ringLine = new THREE.Line(ringGeom, ringMat);
-      globeGroup.add(ringLine);
+    // Latitude / Longitude Helper
+    function latLongToVector3(lat, lon, radius) {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const theta = (lon + 180) * (Math.PI / 180);
+      return new THREE.Vector3(
+        -(radius * Math.sin(phi) * Math.cos(theta)),
+        radius * Math.cos(phi),
+        radius * Math.sin(phi) * Math.sin(theta)
+      );
     }
 
-    // Longitude Rings
-    for (let lon = 0; lon < 180; lon += 30) {
-      const rad = (lon * Math.PI) / 180;
-      const points = [];
-      for (let i = 0; i <= 64; i++) {
-        const theta = (i / 64) * Math.PI * 2;
-        points.push(new THREE.Vector3(
-          sphereRadius * Math.sin(theta) * Math.cos(rad),
-          sphereRadius * Math.cos(theta),
-          sphereRadius * Math.sin(theta) * Math.sin(rad)
-        ));
-      }
-      const lonGeom = new THREE.BufferGeometry().setFromPoints(points);
-      const lonLine = new THREE.Line(lonGeom, ringMat);
-      globeGroup.add(lonLine);
-    }
+    // Hub Nodes
+    const nodes = {
+      NYC: { lat: 40.7128, lon: -74.0060 },
+      BOM: { lat: 19.0760, lon: 72.8777 },
+      LDN: { lat: 51.5074, lon: -0.1278 },
+      SIN: { lat: 1.3521, lon: 103.8198 },
+      TYO: { lat: 35.6762, lon: 139.6503 },
+      DXB: { lat: 25.2048, lon: 55.2708 }
+    };
 
-    // Globe Nodes & Arcs
-    const nodePositions = [
-      { name: 'NYC', pos: new THREE.Vector3(-4, 3, 6) },
-      { name: 'London', pos: new THREE.Vector3(0, 5, 6) },
-      { name: 'Mumbai', pos: new THREE.Vector3(5, 1, 6) },
-      { name: 'Singapore', pos: new THREE.Vector3(7, -3, 4) },
-      { name: 'Shanghai', pos: new THREE.Vector3(6, 3, 5) },
-      { name: 'SFO', pos: new THREE.Vector3(-6, 2, 5) }
-    ];
+    const nodePositions = {};
+    const nodeMarkerGeo = new THREE.SphereGeometry(0.45, 16, 16);
+    const nodeMarkerMat = new THREE.MeshBasicMaterial({ color: 0xe6c594 });
 
-    const nodeGeom = new THREE.SphereGeometry(0.35, 16, 16);
-    const nodeMat = new THREE.MeshStandardMaterial({
-      color: 0xe6c594,
-      metalness: 0.9,
-      roughness: 0.1,
-      emissive: 0x4a3212,
-      emissiveIntensity: 0.8
+    Object.keys(nodes).forEach(key => {
+      const pos = latLongToVector3(nodes[key].lat, nodes[key].lon, 12.25);
+      nodePositions[key] = pos;
+
+      const marker = new THREE.Mesh(nodeMarkerGeo, nodeMarkerMat);
+      marker.position.copy(pos);
+      globeGroup.add(marker);
+
+      const ringGeo = new THREE.RingGeometry(0.6, 0.8, 16);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xc94a6e, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.copy(pos);
+      ring.lookAt(0, 0, 0);
+      globeGroup.add(ring);
     });
 
-    nodePositions.forEach(n => {
-      const mesh = new THREE.Mesh(nodeGeom, nodeMat);
-      mesh.position.copy(n.pos);
-      globeGroup.add(mesh);
-    });
+    // Arc Corridor Curve Generator
+    function createArcCurve(p1, p2) {
+      const distance = p1.distanceTo(p2);
+      const mid = p1.clone().add(p2).multiplyScalar(0.5);
+      const midLength = mid.length();
+      mid.normalize().multiplyScalar(midLength + distance * 0.28);
 
-    // Arc Curves
-    function createArc(posA, posB, colorHex = 0xe6c594) {
-      const mid = new THREE.Vector3().addVectors(posA, posB).multiplyScalar(0.5);
-      mid.normalize().multiplyScalar(sphereRadius + 2.5);
-      const curve = new THREE.QuadraticBezierCurve3(posA, mid, posB);
+      const curve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
       const points = curve.getPoints(50);
-      const geom = new THREE.BufferGeometry().setFromPoints(points);
-      const mat = new THREE.LineBasicMaterial({ color: colorHex, transparent: true, opacity: 0.7 });
-      return new THREE.Line(geom, mat);
+      const arcGeo = new THREE.BufferGeometry().setFromPoints(points);
+
+      const arcMat = new THREE.LineBasicMaterial({
+        color: 0xe6c594,
+        transparent: true,
+        opacity: 0.75,
+        linewidth: 2
+      });
+
+      return new THREE.Line(arcGeo, arcMat);
     }
 
-    globeGroup.add(createArc(nodePositions[0].pos, nodePositions[2].pos)); // NYC -> Mumbai
-    globeGroup.add(createArc(nodePositions[5].pos, nodePositions[4].pos)); // SFO -> Shanghai
-    globeGroup.add(createArc(nodePositions[1].pos, nodePositions[3].pos, 0xc94a6e)); // London -> Singapore
+    globeGroup.add(createArcCurve(nodePositions.NYC, nodePositions.BOM));
+    globeGroup.add(createArcCurve(nodePositions.LDN, nodePositions.SIN));
+    globeGroup.add(createArcCurve(nodePositions.NYC, nodePositions.DXB));
+    globeGroup.add(createArcCurve(nodePositions.LDN, nodePositions.TYO));
 
-    // 3. CANVAS-ENGRAVED 3D ROTATING & TOSSING COINS ($ € ₹ £ ¥)
-    const currencySymbols = ['$', '€', '₹', '£', '¥'];
+    // ENGRAVED 24K GOLD COINS (Dynamic Canvas Textures)
+    const coinGroup = new THREE.Group();
+    scene.add(coinGroup);
 
-    function createEngravedTexture(symbol, isGold) {
-      const c = document.createElement('canvas');
-      c.width = 256;
-      c.height = 256;
-      const ctx = c.getContext('2d');
+    function createEngravedGoldCoinTexture(symbol) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
 
-      // Gradient Metal Face
-      const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 120);
-      if (isGold) {
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.3, '#f7e2bd');
-        grad.addColorStop(0.7, '#e6c594');
-        grad.addColorStop(1, '#b88946');
-      } else {
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.4, '#e2e8f0');
-        grad.addColorStop(0.8, '#cbd5e1');
-        grad.addColorStop(1, '#94a3b8');
-      }
-
+      // Metallic Gold Radial Gradient
+      const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 128);
+      grad.addColorStop(0, '#fef08a');
+      grad.addColorStop(0.4, '#f59e0b');
+      grad.addColorStop(0.8, '#d97706');
+      grad.addColorStop(1, '#78350f');
       ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(128, 128, 120, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(0, 0, 256, 256);
 
-      // Outer Bevel Rim
+      // Outer Engraved Ridge Rim
+      ctx.strokeStyle = '#451a03';
       ctx.lineWidth = 10;
-      ctx.strokeStyle = isGold ? '#8c5e23' : '#64748b';
-      ctx.stroke();
-
-      // Inner Ridge
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = isGold ? '#ffffff' : '#f8fafc';
       ctx.beginPath();
-      ctx.arc(128, 128, 108, 0, Math.PI * 2);
+      ctx.arc(128, 128, 114, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Engraved Currency Symbol
-      ctx.font = 'bold 120px "Space Grotesk", sans-serif';
+      ctx.strokeStyle = '#fef3c7';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(128, 128, 104, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Deep Beveled Symbol Engraving
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 3;
+      ctx.shadowOffsetY = 3;
+
+      ctx.fillStyle = '#3b1202';
+      ctx.font = 'bold 110px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.fillText(symbol, 128, 134);
 
-      // Drop Shadow Engraving
-      ctx.fillStyle = isGold ? 'rgba(74, 50, 18, 0.6)' : 'rgba(30, 41, 59, 0.5)';
-      ctx.fillText(symbol, 131, 131);
+      // Specular Highlight Overlay
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = '#fffbeb';
+      ctx.fillText(symbol, 126, 130);
 
-      // Main Text
-      ctx.fillStyle = isGold ? '#2b0818' : '#0f172a';
-      ctx.fillText(symbol, 128, 128);
-
-      return new THREE.CanvasTexture(c);
+      return new THREE.CanvasTexture(canvas);
     }
 
-    const coinsGroup = new THREE.Group();
-    scene.add(coinsGroup);
+    const coinSymbols = ['$', '₹', '€', '£', '¥', 'AED', 'CHF'];
+    const goldMaterial24k = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b,
+      metalness: 0.95,
+      roughness: 0.15,
+      emissive: 0x78350f,
+      emissiveIntensity: 0.25
+    });
 
-    const coinGeom = new THREE.CylinderGeometry(0.85, 0.85, 0.14, 32);
+    const orbitingCoins = [];
+    const totalCoins = 14;
 
-    for (let i = 0; i < 22; i++) {
-      const isGold = i % 2 === 0;
-      const symbol = currencySymbols[i % currencySymbols.length];
-      const faceTex = createEngravedTexture(symbol, isGold);
+    for (let i = 0; i < totalCoins; i++) {
+      const sym = coinSymbols[i % coinSymbols.length];
+      const coinGeo = new THREE.CylinderGeometry(1.35, 1.35, 0.28, 32);
 
-      const sideMat = new THREE.MeshStandardMaterial({
-        color: isGold ? 0xb88946 : 0x94a3b8,
-        metalness: 0.95,
+      const faceTex = createEngravedGoldCoinTexture(sym);
+      const faceMat = new THREE.MeshStandardMaterial({
+        map: faceTex,
+        metalness: 0.9,
         roughness: 0.2
       });
 
-      const faceMat = new THREE.MeshStandardMaterial({
-        map: faceTex,
-        metalness: 0.85,
-        roughness: 0.15
-      });
+      const materials = [
+        goldMaterial24k, // Outer rib
+        faceMat,         // Front face
+        faceMat          // Back face
+      ];
 
-      // Cylinder Materials: [Sides, Top Face, Bottom Face]
-      const coin = new THREE.Mesh(coinGeom, [sideMat, faceMat, faceMat]);
-      
-      const side = i % 2 === 0 ? -1 : 1;
-      coin.position.set(
-        side * (14 + Math.random() * 5),
-        (Math.random() - 0.5) * 44,
-        (Math.random() - 0.5) * 12
-      );
-      coin.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-      
-      // Add custom rotational speeds for authentic 3D coin tossing
-      coin.userData = {
-        rotX: 0.015 + Math.random() * 0.02,
-        rotY: 0.02 + Math.random() * 0.025,
-        rotZ: 0.01 + Math.random() * 0.015,
-        tossSpeed: 0.005 + Math.random() * 0.01
-      };
+      const coin = new THREE.Mesh(coinGeo, materials);
 
-      coinsGroup.add(coin);
+      const radius = 20 + Math.random() * 8;
+      const baseAngle = (i / totalCoins) * Math.PI * 2;
+      const inclination = (Math.random() - 0.5) * 0.5;
+
+      coin.userData = { radius, baseAngle, inclination };
+      orbitingCoins.push(coin);
+      coinGroup.add(coin);
     }
 
-    // 4. ANIMATION LOOP & INTERACTIVE CAMERA
-    let targetCameraPos = new THREE.Vector3(0, 0, 25);
+    // SCROLL MECHANIC: GLOBE MINIMIZE + CONSTANT SMOOTH SPIN
+    let scrollY = window.scrollY;
+    let targetGlobeScale = 1.0;
+    let currentGlobeScale = 1.0;
 
-    window.focusCorridor = function(corridorKey) {
-      if (corridorKey === 'nyc_mumbai') targetCameraPos.set(-1, 1, 16);
-      if (corridorKey === 'sfo_shanghai') targetCameraPos.set(0, 3, 16);
-      if (corridorKey === 'london_singapore') targetCameraPos.set(4, -1, 16);
-    };
+    window.addEventListener('scroll', () => {
+      scrollY = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const scrollPercent = Math.min(Math.max(scrollY / (maxScroll || 1), 0), 1);
+      
+      targetGlobeScale = 1.0 - (scrollPercent * 0.45);
+    });
 
-    window.resetGlobeView = function() {
-      targetCameraPos.set(0, 0, 25);
-    };
+    // ANIMATION LOOP
+    const clock = new THREE.Clock();
 
     function animate() {
       requestAnimationFrame(animate);
 
-      // Smooth camera motion
-      camera.position.lerp(targetCameraPos, 0.05);
+      const elapsedTime = clock.getElapsedTime();
 
-      // Rotate Globe slowly
-      globeGroup.rotation.y += 0.003;
-      globeGroup.rotation.x = 0.15;
+      // Lerp Globe Scale
+      currentGlobeScale += (targetGlobeScale - currentGlobeScale) * 0.08;
+      globeGroup.scale.set(currentGlobeScale, currentGlobeScale, currentGlobeScale);
 
-      // Authentic 3D Coin Tossing & Flipping Mechanics
-      const scrollY = window.scrollY;
-      coinsGroup.children.forEach((coin, idx) => {
-        // Continuous X, Y, and Z-axis rotation to simulate spinning/tossing in space
-        coin.rotation.x += coin.userData.rotX;
-        coin.rotation.y += coin.userData.rotY;
-        coin.rotation.z += coin.userData.rotZ;
+      // Rotate Globe
+      globeWire.rotation.y = elapsedTime * 0.12;
+      globeCore.rotation.y = elapsedTime * 0.08;
 
-        // Smooth scroll-linked tossing translation down the margins
-        coin.position.y = ((idx * 4.8 - scrollY * 0.025) % 44) - 22;
+      // STABLE SPIN MECHANIC: Coins orbit & spin at CONSTANT speed
+      orbitingCoins.forEach((coin) => {
+        const angle = coin.userData.baseAngle + (elapsedTime * 0.4);
+        const r = coin.userData.radius;
+
+        coin.position.x = Math.cos(angle) * r;
+        coin.position.z = Math.sin(angle) * r;
+        coin.position.y = Math.sin(angle * 2) * 4 + (coin.userData.inclination * r);
+
+        // Constant smooth self-spin
+        coin.rotation.x = elapsedTime * 0.8;
+        coin.rotation.y = elapsedTime * 1.2;
       });
 
+      controls.update();
       renderer.render(scene, camera);
     }
+
     animate();
 
-    // Window Resize Handler
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // Corridor Navigation Camera Views
+    window.focusCorridor = function(route) {
+      if (route === 'nyc_mumbai') {
+        camera.position.set(15, 12, 35);
+      } else if (route === 'sfo_shanghai') {
+        camera.position.set(0, 15, 35);
+      } else if (route === 'london_singapore') {
+        camera.position.set(-18, 15, 32);
+      }
+      controls.target.set(0, 0, 0);
+    };
+
+    window.resetGlobeView = function() {
+      camera.position.set(0, 0, 45);
+      controls.target.set(0, 0, 0);
+    };
   </script>
 
   <!-- Interactive Mechanics Script (Calculator, Shatter, API Execution) -->
@@ -983,7 +1013,7 @@
     let prevSettlex = 0;
     let prevSaved = 0;
 
-    function animateCounter(element, startVal, endVal, symbol, duration = 400) {
+    function animateCounter(element, startVal, endVal, symbol, duration = 450) {
       let startTime = null;
       function step(timestamp) {
         if (!startTime) startTime = timestamp;
