@@ -389,7 +389,7 @@
       <div class="pointer-events-auto pt-8 flex flex-col items-center gap-2 text-champagne text-xs tracking-wider font-mono uppercase bg-deepwine/85 px-6 py-3 rounded-full border border-champagne/30 backdrop-blur-md shadow-lg animate-bounce">
         <span class="flex items-center gap-2">
           <i data-lucide="arrow-down-circle" class="w-4 h-4 text-rosewine"></i>
-          Scroll Down: White Gold & Platinum Coins Toss in Viewport Margins
+          Scroll Down: Engraved Currency Coins ($ € ₹ £ ¥) Toss in Viewport Margins
         </span>
       </div>
     </section>
@@ -714,83 +714,197 @@
     canvasContainer.appendChild(renderer.domElement);
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     scene.add(ambientLight);
 
-    const pointLight1 = new THREE.PointLight(0xe6c594, 3, 100);
+    const pointLight1 = new THREE.PointLight(0xe6c594, 3.5, 100);
     pointLight1.position.set(15, 15, 15);
     scene.add(pointLight1);
 
-    const pointLight2 = new THREE.PointLight(0xc94a6e, 2, 100);
+    const pointLight2 = new THREE.PointLight(0xc94a6e, 2.5, 100);
     pointLight2.position.set(-15, -15, 15);
     scene.add(pointLight2);
 
-    // 2. NETWORK NODES & CONNECTION ARCS
-    const nodeGroup = new THREE.Group();
-    scene.add(nodeGroup);
+    // 2. REAL 3D WIREFRAME GLOBE SPHERE
+    const globeGroup = new THREE.Group();
+    scene.add(globeGroup);
 
+    // Sphere Mesh
+    const sphereRadius = 8;
+    const sphereGeom = new THREE.SphereGeometry(sphereRadius, 36, 36);
+    
+    // Outer Glow Wireframe
+    const wireframeMat = new THREE.MeshBasicMaterial({
+      color: 0xe6c594,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.18
+    });
+    const globeMesh = new THREE.Mesh(sphereGeom, wireframeMat);
+    globeGroup.add(globeMesh);
+
+    // Latitude & Longitude Rings
+    const ringMat = new THREE.LineBasicMaterial({ color: 0xe6c594, transparent: true, opacity: 0.3 });
+
+    // Equator & Latitude Rings
+    for (let lat = -60; lat <= 60; lat += 20) {
+      const rad = (lat * Math.PI) / 180;
+      const r = sphereRadius * Math.cos(rad);
+      const y = sphereRadius * Math.sin(rad);
+
+      const points = [];
+      for (let i = 0; i <= 64; i++) {
+        const theta = (i / 64) * Math.PI * 2;
+        points.push(new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta)));
+      }
+      const ringGeom = new THREE.BufferGeometry().setFromPoints(points);
+      const ringLine = new THREE.Line(ringGeom, ringMat);
+      globeGroup.add(ringLine);
+    }
+
+    // Longitude Rings
+    for (let lon = 0; lon < 180; lon += 30) {
+      const rad = (lon * Math.PI) / 180;
+      const points = [];
+      for (let i = 0; i <= 64; i++) {
+        const theta = (i / 64) * Math.PI * 2;
+        points.push(new THREE.Vector3(
+          sphereRadius * Math.sin(theta) * Math.cos(rad),
+          sphereRadius * Math.cos(theta),
+          sphereRadius * Math.sin(theta) * Math.sin(rad)
+        ));
+      }
+      const lonGeom = new THREE.BufferGeometry().setFromPoints(points);
+      const lonLine = new THREE.Line(lonGeom, ringMat);
+      globeGroup.add(lonLine);
+    }
+
+    // Globe Nodes & Arcs
     const nodePositions = [
-      { name: 'NYC', pos: new THREE.Vector3(-10, 5, 0) },
-      { name: 'London', pos: new THREE.Vector3(-2, 7, -2) },
-      { name: 'Mumbai', pos: new THREE.Vector3(8, -2, -1) },
-      { name: 'Singapore', pos: new THREE.Vector3(12, -6, 2) },
-      { name: 'Shanghai', pos: new THREE.Vector3(10, 4, 1) },
-      { name: 'SFO', pos: new THREE.Vector3(-14, 2, 2) }
+      { name: 'NYC', pos: new THREE.Vector3(-4, 3, 6) },
+      { name: 'London', pos: new THREE.Vector3(0, 5, 6) },
+      { name: 'Mumbai', pos: new THREE.Vector3(5, 1, 6) },
+      { name: 'Singapore', pos: new THREE.Vector3(7, -3, 4) },
+      { name: 'Shanghai', pos: new THREE.Vector3(6, 3, 5) },
+      { name: 'SFO', pos: new THREE.Vector3(-6, 2, 5) }
     ];
 
-    const nodeGeom = new THREE.SphereGeometry(0.8, 32, 32);
+    const nodeGeom = new THREE.SphereGeometry(0.35, 16, 16);
     const nodeMat = new THREE.MeshStandardMaterial({
       color: 0xe6c594,
       metalness: 0.9,
       roughness: 0.1,
       emissive: 0x4a3212,
-      emissiveIntensity: 0.5
+      emissiveIntensity: 0.8
     });
 
-    const nodeMeshes = {};
     nodePositions.forEach(n => {
       const mesh = new THREE.Mesh(nodeGeom, nodeMat);
       mesh.position.copy(n.pos);
-      nodeGroup.add(mesh);
-      nodeMeshes[n.name] = mesh;
+      globeGroup.add(mesh);
     });
 
     // Arc Curves
     function createArc(posA, posB, colorHex = 0xe6c594) {
       const mid = new THREE.Vector3().addVectors(posA, posB).multiplyScalar(0.5);
-      mid.z += 4;
+      mid.normalize().multiplyScalar(sphereRadius + 2.5);
       const curve = new THREE.QuadraticBezierCurve3(posA, mid, posB);
       const points = curve.getPoints(50);
       const geom = new THREE.BufferGeometry().setFromPoints(points);
-      const mat = new THREE.LineBasicMaterial({ color: colorHex, transparent: true, opacity: 0.6 });
+      const mat = new THREE.LineBasicMaterial({ color: colorHex, transparent: true, opacity: 0.7 });
       return new THREE.Line(geom, mat);
     }
 
-    const arcs = [
-      createArc(nodePositions[0].pos, nodePositions[2].pos), // NYC -> Mumbai
-      createArc(nodePositions[5].pos, nodePositions[4].pos), // SFO -> Shanghai
-      createArc(nodePositions[1].pos, nodePositions[3].pos, 0xc94a6e) // London -> Singapore
-    ];
-    arcs.forEach(arc => nodeGroup.add(arc));
+    globeGroup.add(createArc(nodePositions[0].pos, nodePositions[2].pos)); // NYC -> Mumbai
+    globeGroup.add(createArc(nodePositions[5].pos, nodePositions[4].pos)); // SFO -> Shanghai
+    globeGroup.add(createArc(nodePositions[1].pos, nodePositions[3].pos, 0xc94a6e)); // London -> Singapore
 
-    // 3. SCROLLING MARGIN COINS
+    // 3. CANVAS-ENGRAVED CURRENCY COINS ($ € ₹ £ ¥)
+    const currencySymbols = ['$', '€', '₹', '£', '¥'];
+
+    function createEngravedTexture(symbol, isGold) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+
+      // Gradient Metal Face
+      const grad = ctx.createRadialGradient(128, 128, 10, 128, 128, 120);
+      if (isGold) {
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.3, '#f7e2bd');
+        grad.addColorStop(0.7, '#e6c594');
+        grad.addColorStop(1, '#b88946');
+      } else {
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.4, '#e2e8f0');
+        grad.addColorStop(0.8, '#cbd5e1');
+        grad.addColorStop(1, '#94a3b8');
+      }
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(128, 128, 120, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Outer Bevel Rim
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = isGold ? '#8c5e23' : '#64748b';
+      ctx.stroke();
+
+      // Inner Ridge
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = isGold ? '#ffffff' : '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(128, 128, 108, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Engraved Currency Symbol
+      ctx.font = 'bold 120px "Space Grotesk", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Drop Shadow Engraving
+      ctx.fillStyle = isGold ? 'rgba(74, 50, 18, 0.6)' : 'rgba(30, 41, 59, 0.5)';
+      ctx.fillText(symbol, 131, 131);
+
+      // Main Text
+      ctx.fillStyle = isGold ? '#2b0818' : '#0f172a';
+      ctx.fillText(symbol, 128, 128);
+
+      return new THREE.CanvasTexture(c);
+    }
+
     const coinsGroup = new THREE.Group();
     scene.add(coinsGroup);
 
-    const coinGeom = new THREE.CylinderGeometry(0.7, 0.7, 0.12, 32);
-    const goldCoinMat = new THREE.MeshStandardMaterial({ color: 0xe6c594, metalness: 0.95, roughness: 0.1 });
-    const platCoinMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.9, roughness: 0.15 });
+    const coinGeom = new THREE.CylinderGeometry(0.85, 0.85, 0.14, 32);
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 22; i++) {
       const isGold = i % 2 === 0;
-      const coin = new THREE.Mesh(coinGeom, isGold ? goldCoinMat : platCoinMat);
+      const symbol = currencySymbols[i % currencySymbols.length];
+      const faceTex = createEngravedTexture(symbol, isGold);
+
+      const sideMat = new THREE.MeshStandardMaterial({
+        color: isGold ? 0xb88946 : 0x94a3b8,
+        metalness: 0.95,
+        roughness: 0.2
+      });
+
+      const faceMat = new THREE.MeshStandardMaterial({
+        map: faceTex,
+        metalness: 0.85,
+        roughness: 0.15
+      });
+
+      // Cylinder Materials: [Sides, Top Face, Bottom Face]
+      const coin = new THREE.Mesh(coinGeom, [sideMat, faceMat, faceMat]);
       
-      // Position coins along left and right margins
       const side = i % 2 === 0 ? -1 : 1;
       coin.position.set(
-        side * (14 + Math.random() * 4),
-        (Math.random() - 0.5) * 40,
-        (Math.random() - 0.5) * 10
+        side * (14 + Math.random() * 5),
+        (Math.random() - 0.5) * 44,
+        (Math.random() - 0.5) * 12
       );
       coin.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
       coinsGroup.add(coin);
@@ -815,15 +929,16 @@
       // Smooth camera motion
       camera.position.lerp(targetCameraPos, 0.05);
 
-      // Rotate network node group slowly
-      nodeGroup.rotation.y += 0.002;
+      // Rotate Globe slowly
+      globeGroup.rotation.y += 0.003;
+      globeGroup.rotation.x = 0.15;
 
-      // Animate coins tumbling with scroll position
+      // Tumbling Margin Coins with Scroll
       const scrollY = window.scrollY;
       coinsGroup.children.forEach((coin, idx) => {
-        coin.rotation.x += 0.01 + idx * 0.001;
-        coin.rotation.y += 0.015;
-        coin.position.y = ((idx * 5 - scrollY * 0.02) % 40) - 20;
+        coin.rotation.x += 0.012 + idx * 0.0008;
+        coin.rotation.y += 0.018;
+        coin.position.y = ((idx * 4.8 - scrollY * 0.02) % 44) - 22;
       });
 
       renderer.render(scene, camera);
