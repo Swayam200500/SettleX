@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "SettleX B2B FX Settlement Engine",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "test": "jest --detectOpenHandles --forceExit"
@@ -10,7 +11,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
     "@upstash/redis": "^1.40.0",
@@ -22,7 +22,6 @@
     "express-rate-limit": "^8.7.1",
     "express-validator": "^7.3.2",
     "ioredis": "^6.0.0",
-    "mongodb-memory-server": "^11.3.0",
     "mongoose": "^9.11.3",
     "pg": "^8.23.1",
     "swagger-jsdoc": "^6.3.0",
@@ -30,6 +29,7 @@
   },
   "devDependencies": {
     "jest": "^30.5.2",
+    "mongodb-memory-server": "^11.3.0",
     "supertest": "^7.3.1"
   }
 }

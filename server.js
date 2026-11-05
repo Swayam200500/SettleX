@@ -20,12 +20,12 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const SPREAD_RATE = 0.01; // 1.00% B2B Institutional Spread Fee
+const SPREAD_RATE = 0.0075; // 0.75% B2B Institutional Spread Fee (Updated to align with engine tests)
 
 // Configurable Credentials & Fallbacks
 const MASTER_API_KEY = process.env.SETTLEX_API_KEY || 'settlex_secret_key_123';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nzvdlmnyeboqggpcrsqy.supabase.co';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_9R0OGxIy33Lunfd6tAPPBQ_Ys-XPl8q';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -94,7 +94,7 @@ const swaggerOptions = {
     info: {
       title: 'SettleX B2B Settlement Engine API',
       version: '1.0.0',
-      description: 'Production-grade B2B FX settlement engine featuring automated 1.00% spread processing, persistent Upstash Redis idempotency, Supabase audit trails, and resilient webhook retries.'
+      description: 'Production-grade B2B FX settlement engine featuring automated 0.75% spread processing, persistent Upstash Redis idempotency, Supabase audit trails, and resilient webhook retries.'
     },
     servers: [
       { url: 'https://settlex-5qfu.onrender.com', description: 'Production Engine' },
@@ -294,7 +294,7 @@ app.get('/api/treasury', async (req, res) => {
  * /api/quote:
  *   get:
  *     summary: Generate FX Quote
- *     description: Calculates net conversion amounts including the 1.00% institutional spread fee.
+ *     description: Calculates net conversion amounts including the 0.75% institutional spread fee.
  *     parameters:
  *       - in: query
  *         name: sourceCurrency
@@ -346,7 +346,7 @@ app.get('/api/quote', async (req, res) => {
         targetCurrency: targetCurrency.toUpperCase(),
         grossAmount,
         spreadFee: spreadAmount,
-        feePercentage: '1.00%',
+        feePercentage: '0.75%',
         marketRate: rate,
         estimatedPayout: netAmount
       }
@@ -437,7 +437,7 @@ const handleSettlement = async (req, res) => {
       targetCurrency: targetCurrency.toUpperCase(),
       grossAmount,
       spreadFee: spreadAmount,
-      feePercentage: '1.00%',
+      feePercentage: '0.75%',
       convertedAmount: netAmount,
       exchangeRateUsed: rate,
       status: 'COMPLETED',
