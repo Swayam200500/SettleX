@@ -120,7 +120,7 @@
   <div class="grid">
     <!-- Left Column: Form -->
     <div class="card">
-      <div class="card-title">Execute Settlement</div>
+      <div class="card-title">Execute Settlement (1.00% Spread Fee)</div>
 
       <div class="form-group">
         <label>API Security Key</label>
@@ -129,7 +129,7 @@
 
       <div class="form-group">
         <label>Principal Amount</label>
-        <input type="number" id="amountInput" value="1000">
+        <input type="number" id="amountInput" value="50000">
       </div>
 
       <div class="form-group">
@@ -203,13 +203,15 @@
       const amount = document.getElementById('amountInput').value;
       const sourceCurrency = document.getElementById('sourceCurrency').value;
       const targetCurrency = document.getElementById('targetCurrency').value;
+      const idempotencyKey = `tx_${Date.now()}`;
 
       try {
         const res = await fetch('/api/settle-double-entry', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': apiKey
+            'x-api-key': apiKey,
+            'idempotency-key': idempotencyKey
           },
           body: JSON.stringify({ sourceCurrency, targetCurrency, amount })
         });
