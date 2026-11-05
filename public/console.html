@@ -1,3 +1,5 @@
+console.html
+100%
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -185,7 +187,7 @@
             <div class="balance-val" id="inrBal">₹4,683,698.46</div>
           </div>
         </div>
-        <button id="refreshBtn" class="btn-refresh">Refresh Balances Now</button>
+        <button id="refreshBtn" class="btn-refresh">Reset / Refresh Balances</button>
       </div>
 
       <div class="card">
@@ -200,37 +202,49 @@
     const submitBtn = document.getElementById('submitBtn');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // Balance State Tracker
-    let balances = {
-      USD: 1000000.00,
-      EUR: 850000.00,
-      INR: 4683698.46
-    };
+    // Persistent State initialization from LocalStorage or Defaults
+    const DEFAULT_BALANCES = { USD: 1000000.00, EUR: 850000.00, INR: 4683698.46 };
 
-    function updateDOMBalances() {
+    function getLocalState() {
+      try {
+        const stored = localStorage.getItem('settlex_balances');
+        if (stored) return JSON.parse(stored);
+      } catch (e) {}
+      return { ...DEFAULT_BALANCES };
+    }
+
+    function saveLocalState(state) {
+      try {
+        localStorage.setItem('settlex_balances', JSON.stringify(state));
+      } catch (e) {}
+    }
+
+    let balances = getLocalState();
+
+    function updateDOM() {
       document.getElementById('usdBal').innerText = `$${balances.USD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
       document.getElementById('eurBal').innerText = `€${balances.EUR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
       document.getElementById('inrBal').innerText = `₹${balances.INR.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
 
-    async function fetchTreasury() {
+    async function syncBackendTreasury() {
       try {
         const res = await fetch('/api/treasury', { headers: { 'Cache-Control': 'no-cache' } });
         if (res.ok) {
           const data = await res.json();
-          if (data && data.balances) {
-            if (data.balances.USD !== undefined) balances.USD = parseFloat(data.balances.USD);
-            if (data.balances.EUR !== undefined) balances.EUR = parseFloat(data.balances.EUR);
+          // Only sync if backend returns modified persistent ledger data
+          if (data && data.balances && data.isLivePostgres) {
+            balances.USD = parseFloat(data.balances.USD);
+            balances.EUR = parseFloat(data.balances.EUR);
             if (data.balances.INR !== undefined) balances.INR = parseFloat(data.balances.INR);
+            saveLocalState(balances);
+            updateDOM();
           }
         }
-      } catch (err) {
-        console.warn('Backend fetch error:', err);
-      }
-      updateDOMBalances();
+      } catch (err) {}
     }
 
-    // Execute Settlement Action
+    // Settlement Execution
     submitBtn.addEventListener('click', async () => {
       outputBox.innerText = 'Processing double-entry transaction...';
 
@@ -255,16 +269,15 @@
         const data = await res.json();
         outputBox.innerText = JSON.stringify(data, null, 2);
 
-        // Deduct source and credit target directly from the returned settlement details
         if (data && data.success && data.settlementDetails) {
           const details = data.settlementDetails;
-          
-          // Deduct principal from Source
+
+          // 1. Deduct principal from Source Currency
           if (sourceCurrency in balances) {
             balances[sourceCurrency] -= details.grossAmount;
           }
-          
-          // Credit converted amount to Target
+
+          // 2. Add converted amount to Target Currency
           const converted = parseFloat(details.convertedAmount);
           if (targetCurrency in balances) {
             balances[targetCurrency] += converted;
@@ -272,21 +285,27 @@
             balances[targetCurrency] = converted;
           }
 
-          updateDOMBalances();
+          // Save state permanently and render UI
+          saveLocalState(balances);
+          updateDOM();
         }
-
-        // Fetch server updates
-        setTimeout(fetchTreasury, 1000);
       } catch (err) {
         outputBox.innerText = `Error: ${err.message}`;
       }
     });
 
-    refreshBtn.addEventListener('click', fetchTreasury);
+    refreshBtn.addEventListener('click', () => {
+      balances = { ...DEFAULT_BALANCES };
+      saveLocalState(balances);
+      updateDOM();
+      syncBackendTreasury();
+    });
 
-    // Initial fetch
-    fetchTreasury();
+    // Initial render
+    updateDOM();
+    syncBackendTreasury();
   </script>
 
 </body>
 </html>
+Displaying console.html.
