@@ -819,7 +819,7 @@
     globeGroup.add(createArc(nodePositions[5].pos, nodePositions[4].pos)); // SFO -> Shanghai
     globeGroup.add(createArc(nodePositions[1].pos, nodePositions[3].pos, 0xc94a6e)); // London -> Singapore
 
-    // 3. CANVAS-ENGRAVED CURRENCY COINS ($ € ₹ £ ¥)
+    // 3. CANVAS-ENGRAVED 3D ROTATING & TOSSING COINS ($ € ₹ £ ¥)
     const currencySymbols = ['$', '€', '₹', '£', '¥'];
 
     function createEngravedTexture(symbol, isGold) {
@@ -906,7 +906,16 @@
         (Math.random() - 0.5) * 44,
         (Math.random() - 0.5) * 12
       );
-      coin.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      coin.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      
+      // Add custom rotational speeds for authentic 3D coin tossing
+      coin.userData = {
+        rotX: 0.015 + Math.random() * 0.02,
+        rotY: 0.02 + Math.random() * 0.025,
+        rotZ: 0.01 + Math.random() * 0.015,
+        tossSpeed: 0.005 + Math.random() * 0.01
+      };
+
       coinsGroup.add(coin);
     }
 
@@ -933,12 +942,16 @@
       globeGroup.rotation.y += 0.003;
       globeGroup.rotation.x = 0.15;
 
-      // Tumbling Margin Coins with Scroll
+      // Authentic 3D Coin Tossing & Flipping Mechanics
       const scrollY = window.scrollY;
       coinsGroup.children.forEach((coin, idx) => {
-        coin.rotation.x += 0.012 + idx * 0.0008;
-        coin.rotation.y += 0.018;
-        coin.position.y = ((idx * 4.8 - scrollY * 0.02) % 44) - 22;
+        // Continuous X, Y, and Z-axis rotation to simulate spinning/tossing in space
+        coin.rotation.x += coin.userData.rotX;
+        coin.rotation.y += coin.userData.rotY;
+        coin.rotation.z += coin.userData.rotZ;
+
+        // Smooth scroll-linked tossing translation down the margins
+        coin.position.y = ((idx * 4.8 - scrollY * 0.025) % 44) - 22;
       });
 
       renderer.render(scene, camera);
