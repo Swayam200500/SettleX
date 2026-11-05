@@ -1,21 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const { Queue } = require('bullmq');
 const { createClient } = require('@supabase/supabase-js');
+const { Redis } = require('@upstash/redis');
 
 const WEBHOOK_SECRET = process.env.BAAS_WEBHOOK_SECRET || 'whsec_settlex_institutional_secret_99';
 
-// Parse Redis connection
-const redisConnection = process.env.REDIS_URL
-  ? { url: process.env.REDIS_URL, tls: {} }
-  : { host: process.env.REDIS_HOST || 'localhost', port: Number(process.env.REDIS_PORT) || 6379 };
-
-let dlqQueue = null;
-try {
-  dlqQueue = new Queue('webhook-dlq', { connection: redisConnection });
-} catch (err) {
-  console.warn('[DLQ Warning]: Queue initialization bypassed:', err.message);
+// Initialize Upstash Redis HTTP Client (Serverless Safe)
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  try {
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  } catch (err) {
+    console.warn('[Webhook Upstash Init Error]:', err.message);
+  }
 }
 
 function getSupabaseClient() {
@@ -111,13 +112,16 @@ router.post('/baas/callback', verifyWebhookSignature, async (req, res) => {
   } catch (error) {
     console.error(`[Webhook Processing Error] Enqueueing DLQ: ${error.message}`);
 
-    if (dlqQueue) {
+    // Serverless-compatible DLQ logging via Upstash Redis List
+    if (redis) {
       try {
-        await dlqQueue.add('retry-webhook', {
+        const dlqPayload = {
           payload: req.body,
           error: error.message,
           attemptedAt: new Date().toISOString()
-        }, { attempts: 5, backoff: { type: 'exponential', delay: 5000 } });
+        };
+        await redis.lpush('webhook-dlq', JSON.stringify(dlqPayload));
+        console.log('[DLQ Enqueued]: Successfully logged to Upstash DLQ queue.');
       } catch (dlqErr) {
         console.warn('[DLQ Enqueue Failed]:', dlqErr.message);
       }
